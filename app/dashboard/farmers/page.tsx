@@ -16,7 +16,7 @@ interface Pagination { page: number; pages: number; total: number; limit: number
 
 export default function FarmersPage() {
   const { toast } = useToast() ?? {};
-  const { subscribe } = useSocket();
+  const { subscribe } = useSocket() ?? {};
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,8 +38,8 @@ export default function FarmersPage() {
   useEffect(() => { fetchFarmers(); }, [fetchFarmers]);
 
   useEffect(() => {
-    return subscribe('dashboard_updated', (data: { type?: string }) => {
-      if (data?.type === 'farmer_added') {
+    return subscribe?.('dashboard_updated', (data: unknown) => {
+      if ((data as { type?: string })?.type === 'farmer_added') {
         fetchFarmers();
         toast?.('New farmer registered', 'info');
       }
@@ -61,7 +61,7 @@ export default function FarmersPage() {
   };
 
   const columns = [
-    { key: 'farmerId', label: 'ID', render: (v: string) => <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{v}</span> },
+    { key: 'farmerId', label: 'ID', render: (v: string | undefined) => <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{v}</span> },
     { key: 'name', label: 'Name' },
     { key: 'mobile', label: 'Mobile' },
     { key: 'village', label: 'Location', render: (_: unknown, row: Farmer) => (
@@ -71,7 +71,7 @@ export default function FarmersPage() {
       <span className="flex items-center gap-1.5"><Beef size={13} className="text-gray-400" />{v} {row.animalType}</span>
     )},
     { key: 'gender', label: 'Gender' },
-    { key: 'createdAt', label: 'Registered', render: (v: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
+    { key: 'createdAt', label: 'Registered', render: (v: string | undefined) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
   ];
 
   type FormKey = keyof typeof form;

@@ -104,7 +104,7 @@ export default function DistributorsPage() {
 
   const columns = [
     { key: 'name', label: 'Name' },
-    { key: 'phone', label: 'Phone', render: (v: string) => <span className="flex items-center gap-1.5"><Phone size={13} className="text-gray-400" />{v}</span> },
+    { key: 'phone', label: 'Phone', render: (v: string | undefined) => <span className="flex items-center gap-1.5"><Phone size={13} className="text-gray-400" />{v}</span> },
     { key: 'stock_balance', label: 'Stock Balance', render: (_: unknown, row: Distributor) => {
       const balance = (row.stock?.receivedKg || 0) - (row.stock?.soldKg || 0);
       return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${balance < 50 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}><Package size={12} />{balance}kg</span>;
@@ -116,7 +116,7 @@ export default function DistributorsPage() {
       const pct = rcv > 0 ? Math.round((sold / rcv) * 100) : 0;
       return <div className="flex items-center gap-2"><div className="w-16 h-1.5 bg-gray-200 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} /></div><span className="text-xs text-gray-600">{pct}%</span></div>;
     }},
-    { key: 'createdAt', label: 'Joined', render: (v: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
+    { key: 'createdAt', label: 'Joined', render: (v: string | undefined) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
     { key: 'actions', label: '', render: (_: unknown, row: Distributor) => (
       <div className="flex items-center gap-1 justify-end">
         <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit"><Pencil size={14} /></button>

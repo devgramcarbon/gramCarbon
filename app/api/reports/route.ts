@@ -101,7 +101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse | Response
       const ctx = getAuditContext(request, user);
       await logAudit({ ...ctx, action: 'REPORT_GENERATED', entity: 'Report', metadata: { type, format, from, to } });
 
-      return new NextResponse(buffer as Buffer, {
+      return new NextResponse(new Uint8Array(buffer), {
         status: 200,
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

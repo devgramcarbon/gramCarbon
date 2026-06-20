@@ -106,8 +106,8 @@ export default function SalesPage() {
     { key: 'farmerName', label: 'Farmer' },
     { key: 'cowCount', label: 'Animals', render: (v: number) => `${v} animals` },
     { key: 'qtyKg', label: 'Qty (kg)', render: (v: number) => <span className="font-semibold text-green-700">{v}kg</span> },
-    { key: 'batchNo', label: 'Batch', render: (v: string) => v || '—' },
-    { key: 'saleDate', label: 'Date', render: (v: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
+    { key: 'batchNo', label: 'Batch', render: (v: string | undefined) => v || '—' },
+    { key: 'saleDate', label: 'Date', render: (v: string | undefined) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
   ];
 
   return (

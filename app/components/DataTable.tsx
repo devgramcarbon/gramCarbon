@@ -8,7 +8,8 @@ interface Column<T> {
   key: string;
   label: string;
   width?: string;
-  render?: (value: T[keyof T], row: T) => ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  render?: (value: any, row: T) => ReactNode;
 }
 
 interface Pagination {

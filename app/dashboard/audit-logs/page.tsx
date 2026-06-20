@@ -57,11 +57,11 @@ export default function AuditLogsPage() {
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   const columns = [
-    { key: 'action', label: 'Action', render: (v: string) => <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[v] || 'bg-gray-100 text-gray-600'}`}>{v}</span> },
-    { key: 'userEmail', label: 'User', render: (v: string) => v || '—' },
-    { key: 'entity', label: 'Entity', render: (v: string, row: AuditLog) => v ? `${v}${row.entityId ? ` (${row.entityId.slice(-6)})` : ''}` : '—' },
-    { key: 'ipAddress', label: 'IP', render: (v: string) => v || '—' },
-    { key: 'createdAt', label: 'Time', render: (v: string) => v ? new Date(v).toLocaleString('en-IN') : '—' },
+    { key: 'action', label: 'Action', render: (v: string | undefined) => <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[v ?? ''] || 'bg-gray-100 text-gray-600'}`}>{v}</span> },
+    { key: 'userEmail', label: 'User', render: (v: string | undefined) => v || '—' },
+    { key: 'entity', label: 'Entity', render: (v: string | undefined, row: AuditLog) => v ? `${v}${row.entityId ? ` (${row.entityId.slice(-6)})` : ''}` : '—' },
+    { key: 'ipAddress', label: 'IP', render: (v: string | undefined) => v || '—' },
+    { key: 'createdAt', label: 'Time', render: (v: string | undefined) => v ? new Date(v).toLocaleString('en-IN') : '—' },
   ];
 
   return (

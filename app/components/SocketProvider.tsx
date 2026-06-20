@@ -32,7 +32,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    return () => socket.disconnect();
+    return () => { socket.disconnect(); };
   }, []);
 
   const subscribe = useCallback((event: string, handler: (data: unknown) => void) => {
