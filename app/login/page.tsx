@@ -10,7 +10,8 @@ import { useToast } from '../components/Toaster';
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/dashboard';
+  const rawRedirect = searchParams.get('redirect');
+  const redirect = (!rawRedirect || rawRedirect === '/') ? '/dashboard' : rawRedirect;
 
   const toast = useToast();
   const [form, setForm] = useState({ email: '', password: '' });
