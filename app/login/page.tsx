@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import Image from 'next/image';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -9,7 +9,6 @@ import type { FormEvent } from 'react';
 import { useToast } from '../components/Toaster';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
 
@@ -25,8 +24,7 @@ function LoginForm() {
       const { data } = await axios.post<{ success: boolean }>('/api/auth/login', form);
       if (data.success) {
         toast?.toast('Signed in successfully', 'success');
-        router.push(redirect);
-        router.refresh();
+        window.location.href = redirect;
       }
     } catch (err) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Login failed. Please try again.';
