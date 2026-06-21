@@ -64,17 +64,14 @@ export async function getUserFromRequest(request: Request): Promise<AuthPayload 
 }
 
 export function setAuthCookies(response: NextResponse, accessToken: string, refreshToken: string): void {
+  const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
   response.headers.append(
     'Set-Cookie',
-    `accessToken=${accessToken}; HttpOnly; Path=/; Max-Age=900; SameSite=Lax${
-      process.env.NODE_ENV === 'production' ? '; Secure' : ''
-    }`
+    `accessToken=${accessToken}; HttpOnly; Path=/; Max-Age=900; SameSite=Lax${secure}`
   );
   response.headers.append(
     'Set-Cookie',
-    `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax${
-      process.env.NODE_ENV === 'production' ? '; Secure' : ''
-    }`
+    `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax${secure}`
   );
 }
 
