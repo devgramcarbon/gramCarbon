@@ -56,9 +56,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         role: payload.role,
       });
 
-      const response = pathname.startsWith('/api/')
-        ? NextResponse.next()
-        : NextResponse.redirect(request.url);
+      const response = NextResponse.next();
 
       response.headers.append(
         'Set-Cookie',
