@@ -24,7 +24,13 @@ interface SendMessageBody {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const user = await getUserFromRequest(request);
+  let user: Awaited<ReturnType<typeof getUserFromRequest>>;
+  try {
+    user = await getUserFromRequest(request);
+  } catch (err) {
+    console.error('[send-message] getUserFromRequest threw:', err);
+    return NextResponse.json({ error: 'Auth error' }, { status: 500 });
+  }
   if (!user) return unauthorized();
 
   const rl = rateLimit(`msg:${user.userId}`, { limit: 30, windowMs: 60_000 });
@@ -158,7 +164,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const errMsg = (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message || (err as Error)?.message || 'Failed to send message.';
+    const axiosErr = err as { response?: { data?: { error?: { message?: string } }; status?: number }; message?: string };
+    const errMsg = axiosErr?.response?.data?.error?.message || (err as Error)?.message || 'Failed to send message.';
+    console.error('[send-message] 500 error:', {
+      phone: body?.phone,
+      mode: body?.mode,
+      status: axiosErr?.response?.status,
+      whatsappError: axiosErr?.response?.data?.error,
+      message: errMsg,
+      stack: (err as Error)?.stack,
+    });
     await notifyWhatsAppFailed(body?.phone || 'unknown', errMsg);
     return NextResponse.json({ error: errMsg }, { status: 500 });
   }
