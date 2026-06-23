@@ -19,7 +19,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const phone = searchParams.get('phone');
 
   const query = phone ? { distributorPhone: phone } : {};
-  const stocks = await Stock.find(query);
+  const stocks = await Stock.find(query).lean();
   return success(stocks);
 }
 

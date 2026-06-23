@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const category = searchParams.get('category');
 
   const query = category ? { category } : {};
-  const settings = await Settings.find(query).sort({ category: 1, key: 1 });
+  const settings = await Settings.find(query).sort({ category: 1, key: 1 }).lean();
 
   const grouped = settings.reduce<Record<string, unknown[]>>((acc, s) => {
     const cat = s.category || 'system';

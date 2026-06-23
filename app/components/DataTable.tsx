@@ -36,15 +36,15 @@ export default function DataTable<T extends { _id?: string }>({
   emptyText = 'No records found',
 }: DataTableProps<T>) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-[#161b22] rounded-xl border border-gray-200 dark:border-[#30363d] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-[#1c2128] border-b border-gray-200 dark:border-[#30363d]">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#636e7b] uppercase tracking-wide"
                   style={col.width ? { width: col.width } : {}}
                 >
                   {col.label}
@@ -52,7 +52,7 @@ export default function DataTable<T extends { _id?: string }>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#21262d]">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={columns.length} />)
             ) : data.length === 0 ? (
@@ -63,9 +63,9 @@ export default function DataTable<T extends { _id?: string }>({
               </tr>
             ) : (
               data.map((row, i) => (
-                <tr key={row._id || i} className="hover:bg-gray-50 transition-colors">
+                <tr key={row._id || i} className="hover:bg-gray-50 dark:hover:bg-[#1c2128] transition-colors">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3 text-gray-700">
+                    <td key={col.key} className="px-4 py-3 text-gray-700 dark:text-[#adbac7]">
                       {col.render
                         ? col.render(row[col.key as keyof T], row)
                         : ((row[col.key as keyof T] as ReactNode) ?? '—')}
@@ -79,7 +79,7 @@ export default function DataTable<T extends { _id?: string }>({
       </div>
 
       {pagination && pagination.pages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-[#21262d] text-sm text-gray-500">
           <span>
             Page {pagination.page} of {pagination.pages} ({pagination.total} records)
           </span>

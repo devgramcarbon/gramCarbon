@@ -27,10 +27,10 @@ export async function GET(request: NextRequest): Promise<NextResponse | Response
     if (distributorPhone) dateFilter.distributorPhone = distributorPhone;
 
     const [sales, distributors, farmers, stocks] = await Promise.all([
-      Sale.find(dateFilter).sort({ saleDate: -1 }),
-      Distributor.find(),
-      Farmer.find({ isActive: true }),
-      Stock.find(),
+      Sale.find(dateFilter).sort({ saleDate: -1 }).lean(),
+      Distributor.find().lean(),
+      Farmer.find({ isActive: true }).lean(),
+      Stock.find().lean(),
     ]);
 
     const stockMap = Object.fromEntries(stocks.map((s) => [s.distributorPhone, s]));

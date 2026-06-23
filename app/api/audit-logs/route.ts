@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const [logs, total] = await Promise.all([
-      AuditLog.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+      AuditLog.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       AuditLog.countDocuments(query),
     ]);
 

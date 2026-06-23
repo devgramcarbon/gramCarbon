@@ -56,7 +56,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         role: payload.role,
       });
 
-      const response = NextResponse.next();
+      // Forward the new token in the request so API route handlers can read it
+      const requestHeaders = new Headers(request.headers);
+      const existingCookie = requestHeaders.get('cookie') || '';
+      const updatedCookie = existingCookie.includes('accessToken=')
+        ? existingCookie.replace(/\baccessToken=[^;]*/g, `accessToken=${newAccessToken}`)
+        : existingCookie ? `${existingCookie}; accessToken=${newAccessToken}` : `accessToken=${newAccessToken}`;
+      requestHeaders.set('cookie', updatedCookie);
+
+      const response = NextResponse.next({ request: { headers: requestHeaders } });
 
       response.headers.append(
         'Set-Cookie',

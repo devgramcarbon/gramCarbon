@@ -2,6 +2,7 @@ import type { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Sale from '@/lib/models/Sale';
 import Stock from '@/lib/models/Stock';
+import type { IStock } from '@/lib/models/Stock';
 import Farmer from '@/lib/models/Farmer';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseBody, recordSaleSchema } from '@/lib/validations';
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const [sales, total] = await Promise.all([
-    Sale.find(query).sort({ saleDate: -1 }).skip((page - 1) * limit).limit(limit),
+    Sale.find(query).sort({ saleDate: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Sale.countDocuments(query),
   ]);
 
@@ -52,10 +53,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await connectDB();
 
-    const farmer = await Farmer.findOne({ mobile: parsed.data.farmerMobile, isActive: true });
+    const farmer = await Farmer.findOne({ mobile: parsed.data.farmerMobile, isActive: true }).lean();
     if (!farmer) return error('Farmer is not registered. Please register the farmer first before recording a sale.', 400);
 
-    const stock = await Stock.findOne({ distributorPhone: parsed.data.distributorPhone });
+    const stock = await Stock.findOne({ distributorPhone: parsed.data.distributorPhone }).lean<IStock>();
     if (!stock) return error('Distributor not found', 404);
 
     const balance = stock.receivedKg - stock.soldKg;

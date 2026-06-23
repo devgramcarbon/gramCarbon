@@ -77,18 +77,18 @@ export default function SettingsPage() {
           </button>
         }
       />
-      <div className="flex gap-6">
-        <div className="w-48 flex-shrink-0">
-          <nav className="space-y-0.5">
+      <div className="flex flex-col sm:flex-row gap-6">
+        <div className="sm:w-48 flex-shrink-0">
+          <nav className="flex sm:flex-col gap-1 overflow-x-auto pb-1 sm:pb-0">
             {TABS.map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                className={`flex-shrink-0 sm:w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium capitalize transition-colors ${activeTab === tab ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
                 {tab}
               </button>
             ))}
           </nav>
         </div>
-        <div className="flex-1 bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+        <div className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 space-y-5">
           {!loaded ? (
             <div className="text-sm text-gray-400">Loading settings...</div>
           ) : (

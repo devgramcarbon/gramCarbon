@@ -33,7 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (state) query.state = new RegExp(state, 'i');
 
   const [farmers, total] = await Promise.all([
-    Farmer.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Farmer.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Farmer.countDocuments(query),
   ]);
 

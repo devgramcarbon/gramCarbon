@@ -4,4 +4,230 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
 }
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 99px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* ──────────────────────────────────────────────
+   Panel animations
+   ────────────────────────────────────────────── */
+
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes slideOutToRight {
+  from { opacity: 1; transform: translateX(0);    }
+  to   { opacity: 0; transform: translateX(32px); }
+}
+
+@keyframes slideInFromBottom {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes slideOutToBottom {
+  from { opacity: 1; transform: translateY(0);    }
+  to   { opacity: 0; transform: translateY(100%); }
+}
+
+/* Mobile: panel slides up from bottom */
+.animate-slide-in-right {
+  animation: slideInFromBottom 0.4s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.animate-slide-out-right {
+  animation: slideOutToBottom 0.3s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+
+/* Desktop: panel slides in from right */
+@media (min-width: 1024px) {
+  .animate-slide-in-right {
+    animation: slideInFromRight 0.55s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+
+  .animate-slide-out-right {
+    animation: slideOutToRight 0.35s cubic-bezier(0.5, 0, 0.75, 0) both;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Offset Matrix Grid — responsive columns
+   ────────────────────────────────────────────── */
+
+.offset-matrix-grid {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .offset-matrix-grid {
+    gap: 6px;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+  }
+}
+
+/* ──────────────────────────────────────────────
+   Dark Mode — permanent forced dark theme
+   ────────────────────────────────────────────── */
+
+.dark body {
+  background-color: #0d1117;
+  color: #e6edf3;
+}
+
+/* Backgrounds */
+.dark .bg-white        { background-color: #161b22; }
+.dark .bg-gray-50      { background-color: #0d1117; }
+.dark .bg-gray-100     { background-color: #21262d; }
+.dark .bg-gray-200     { background-color: #30363d; }
+
+/* Opacity backdrop (e.g. sticky header) */
+.dark .bg-white\/80    { background-color: rgb(22 27 34 / 0.85) !important; }
+
+/* Borders */
+.dark .border-gray-50  { border-color: #21262d; }
+.dark .border-gray-100 { border-color: #21262d; }
+.dark .border-gray-200 { border-color: #30363d; }
+
+/* Text */
+.dark .text-gray-900 { color: #e6edf3; }
+.dark .text-gray-800 { color: #cdd9e5; }
+.dark .text-gray-700 { color: #adbac7; }
+.dark .text-gray-600 { color: #768390; }
+.dark .text-gray-500 { color: #636e7b; }
+.dark .text-gray-400 { color: #545d68; }
+
+/* Hover backgrounds */
+.dark .hover\:bg-gray-50:hover  { background-color: #1c2128; }
+.dark .hover\:bg-gray-100:hover { background-color: #21262d; }
+
+/* Hover text */
+.dark .hover\:text-gray-600:hover { color: #adbac7; }
+.dark .hover\:text-gray-800:hover { color: #e6edf3; }
+
+/* Table row dividers */
+.dark .divide-gray-100 > * + * { border-color: #21262d; }
+
+/* Input & form elements */
+.dark input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.dark textarea,
+.dark select {
+  background-color: #1c2128;
+  border-color: #30363d;
+  color: #e6edf3;
+}
+.dark input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: #21262d;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #545d68;
+}
+.dark select option {
+  background-color: #1c2128;
+  color: #e6edf3;
+}
+
+/* Focus-triggered bg-white on inputs */
+.dark .focus\:bg-white:focus { background-color: #21262d !important; }
+
+/* Gradient overrides (home/splash page) */
+.dark .from-green-50 { --tw-gradient-from: #0a1f12 var(--tw-gradient-from-position); }
+.dark .to-white      { --tw-gradient-to: #0d1117 var(--tw-gradient-to-position); }
+
+/* Green active states */
+.dark .bg-green-100  { background-color: #0d2818; }
+.dark .text-green-700 { color: #4ade80; }
+.dark .text-green-600 { color: #34d058; }
+
+/* Coloured notification / status tints */
+.dark .bg-green-50    { background-color: #0d2818; }
+.dark .border-green-200 { border-color: #166534; }
+
+.dark .bg-red-50      { background-color: #2a0a0a; }
+.dark .border-red-200  { border-color: #5c1a1a; }
+.dark .hover\:bg-red-50:hover { background-color: #2a0a0a; }
+
+.dark .bg-orange-50   { background-color: #2a1400; }
+
+.dark .bg-blue-50     { background-color: #0a1628; }
+.dark .border-blue-200 { border-color: #1a3a5c; }
+
+/* Amber info box (dashboard fractional flow) */
+.dark .bg-amber-50    { background-color: #2a1f00; }
+.dark .border-amber-100 { border-color: #3d2e00; }
+.dark .text-gray-500.bg-amber-50 { color: #adbac7; }
+
+/* Green unread notification row tint */
+.dark .bg-green-50\/30 { background-color: rgb(13 40 24 / 0.4); }
+
+/* Shadows — deepen for dark surfaces */
+.dark .shadow-lg  { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4); }
+.dark .shadow-xl  { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5); }
+.dark .shadow-2xl { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.8); }
+
+/* Green button shadow */
+.dark .shadow-green-200 { --tw-shadow-color: rgb(20 83 45 / 0.4); }
+
+/* Recharts tooltip */
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #1c2128 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* ── Coloured status badge tints (audit logs, tables, etc.) ── */
+.dark .bg-blue-100    { background-color: #0d2040; }
+.dark .text-blue-700  { color: #60a5fa; }
+.dark .bg-green-100   { background-color: #0d2818; }
+.dark .text-green-700 { color: #4ade80; }
+.dark .bg-emerald-100  { background-color: #0d2818; }
+.dark .text-emerald-700 { color: #34d399; }
+.dark .bg-purple-100  { background-color: #1e1040; }
+.dark .text-purple-700 { color: #c084fc; }
+.dark .bg-indigo-100  { background-color: #14183a; }
+.dark .text-indigo-700 { color: #818cf8; }
+.dark .bg-yellow-100  { background-color: #2a1f00; }
+.dark .text-yellow-700 { color: #fbbf24; }
+.dark .bg-orange-100  { background-color: #2a1400; }
+.dark .text-orange-700 { color: #fb923c; }
+.dark .bg-red-100     { background-color: #2a0a0a; }
+.dark .text-red-700   { color: #f87171; }
+.dark .bg-teal-100    { background-color: #00221e; }
+.dark .text-teal-700  { color: #2dd4bf; }
+
+/* Toggle switch off-state */
+.dark .bg-gray-300 { background-color: #30363d; }
+
+/* Mono ID badges (e.g. farmerId) */
+.dark .bg-gray-100.font-mono { background-color: #21262d; color: #adbac7; }
+
+/* Server log / code-style backgrounds */
+.dark .bg-gray-900 { background-color: #010409; }
+.dark .text-green-400 { color: #4ade80; }
+.dark .text-red-400   { color: #f87171; }
+.dark .text-yellow-400 { color: #fbbf24; }
+.dark .text-blue-400  { color: #60a5fa; }

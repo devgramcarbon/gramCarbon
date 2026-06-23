@@ -23,8 +23,8 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
   if (!distributor) return notFound('Distributor not found');
 
   const [stock, recentSales] = await Promise.all([
-    Stock.findOne({ distributorPhone: distributor.phone }),
-    Sale.find({ distributorPhone: distributor.phone }).sort({ saleDate: -1 }).limit(20),
+    Stock.findOne({ distributorPhone: distributor.phone }).lean(),
+    Sale.find({ distributorPhone: distributor.phone }).sort({ saleDate: -1 }).limit(20).lean(),
   ]);
 
   return success({ distributor, stock, recentSales });

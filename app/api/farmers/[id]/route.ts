@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
   const farmer = await Farmer.findById(id);
   if (!farmer) return notFound('Farmer not found');
 
-  const sales = await Sale.find({ farmerName: farmer.name }).sort({ saleDate: -1 }).limit(50);
+  const sales = await Sale.find({ farmerName: farmer.name }).sort({ saleDate: -1 }).limit(50).lean();
   return success({ farmer, salesHistory: sales });
 }
 

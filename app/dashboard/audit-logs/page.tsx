@@ -74,7 +74,7 @@ export default function AuditLogsPage() {
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Search by email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-green-500" />
+            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
         <select value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}
           className="px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">

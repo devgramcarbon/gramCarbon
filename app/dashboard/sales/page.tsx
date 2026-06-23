@@ -123,9 +123,9 @@ export default function SalesPage() {
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Search farmer or batch..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-green-500" />
+            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
           <Filter size={14} />
           <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(1); }} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           <span>—</span>

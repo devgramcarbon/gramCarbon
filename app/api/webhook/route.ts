@@ -3,9 +3,12 @@ import type { NextRequest } from 'next/server';
 import axios from 'axios';
 import connectDB from '@/lib/mongodb';
 import Distributor from '@/lib/models/Distributor';
+import type { IDistributor } from '@/lib/models/Distributor';
 import Farmer from '@/lib/models/Farmer';
+import type { IFarmer } from '@/lib/models/Farmer';
 import Sale from '@/lib/models/Sale';
 import Stock from '@/lib/models/Stock';
+import type { IStock } from '@/lib/models/Stock';
 import BotSession from '@/lib/models/BotSession';
 import { notifySystemError } from '@/lib/notifications';
 import { emitEvent, EVENTS } from '@/lib/socketEvents';
@@ -83,6 +86,10 @@ async function handleMessage(phone: string, text: string, profileName?: string):
   const msg = (text || '').trim().toLowerCase();
 
   session.conversationHistory.push({ role: 'user', message: text });
+  // Keep only the last 50 messages to prevent unbounded document growth
+  if (session.conversationHistory.length > 50) {
+    session.conversationHistory.splice(0, session.conversationHistory.length - 50);
+  }
 
   try {
     const isGreeting = ['hi', 'hello', 'menu', 'start'].includes(msg);
@@ -104,7 +111,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
     if (session.currentState === 'main_menu') {
       if (msg === '1' || msg.includes('record')) {
         await connectDB();
-        const stockCheck = await Stock.findOne({ distributorPhone: phone });
+        const stockCheck = await Stock.findOne({ distributorPhone: phone }).lean<IStock>();
         if (!stockCheck) {
           await sendText(phone, '❌ No stock has been allocated to your account yet. Please contact your admin to add stock.');
           await resetSession(session);
@@ -114,8 +121,8 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         await sendText(phone, `📝 *Record Sale*\n\nEnter farmer's name:\n_(Type *cancel* anytime to stop)_`);
       } else if (msg === '2' || msg.includes('stock')) {
         await connectDB();
-        const stock = await Stock.findOne({ distributorPhone: phone });
-        const dist = await Distributor.findOne({ phone });
+        const stock = await Stock.findOne({ distributorPhone: phone }).lean<IStock>();
+        const dist = await Distributor.findOne({ phone }).lean<IDistributor>();
         const bal = (stock?.receivedKg ?? 0) - (stock?.soldKg ?? 0);
         await sendText(
           phone,
@@ -124,7 +131,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         await resetSession(session);
       } else if (msg === '3' || msg.includes('sales') || msg.includes('view')) {
         await connectDB();
-        const sales = await Sale.find({ distributorPhone: phone }).sort({ saleDate: -1 }).limit(5);
+        const sales = await Sale.find({ distributorPhone: phone }).sort({ saleDate: -1 }).limit(5).lean();
         if (!sales.length) {
           await sendText(phone, '📋 No sales recorded yet.');
         } else {
@@ -152,7 +159,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         const name = text.trim();
         if (name.length < 2) { await sendText(phone, '❌ Enter a valid farmer name.'); return; }
         await connectDB();
-        const farmer = await Farmer.findOne({ name: new RegExp(`^${name}$`, 'i'), isActive: true });
+        const farmer = await Farmer.findOne({ name: new RegExp(`^${name}$`, 'i'), isActive: true }).lean<IFarmer>();
         if (!farmer) {
           await sendText(phone, `❌ *Farmer not registered.*\n\nNo farmer found with name *${name}*.\n\nGo back to the main menu and choose *4️⃣ Register Farmer* to add them first.\n\n_(Type *cancel* to go back to menu)_`);
           return;
@@ -188,7 +195,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         data.batchNo = msg === 'skip' ? '' : text.trim();
 
         await connectDB();
-        const stock = await Stock.findOne({ distributorPhone: phone });
+        const stock = await Stock.findOne({ distributorPhone: phone }).lean<IStock>();
         if (!stock) {
           await sendText(phone, '❌ No stock allocated to your account. Contact admin to add stock.');
           await resetSession(session);
@@ -232,7 +239,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         const mobile = text.trim().replace(/\D/g, '');
         if (mobile.length < 10) { await sendText(phone, '❌ Enter a valid 10-digit mobile number.'); return; }
         await connectDB();
-        const existing = await Farmer.findOne({ $or: [{ mobile }, { mobile: `91${mobile}` }] });
+        const existing = await Farmer.findOne({ $or: [{ mobile }, { mobile: `91${mobile}` }] }).lean<IFarmer>();
         if (existing) {
           await sendText(phone, `⚠️ A farmer with mobile *${text.trim()}* is already registered as *${existing.name}*.\n\nEnter a different mobile number or type *cancel* to stop.`);
           return;
@@ -330,8 +337,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         await BotSession.findOneAndUpdate({ phoneNumber: from }, { lastMessageId: msgId }, { upsert: true });
       }
 
-      const dist = await Distributor.findOne({ phone: from });
-      logger.info('Webhook message received', { phone: from, distributor: (dist as { name?: string } | null)?.name || 'unknown', text });
+      const dist = await Distributor.findOne({ phone: from }).lean<IDistributor>();
+      logger.info('Webhook message received', { phone: from, distributor: dist?.name || 'unknown', text });
 
       if (!dist) {
         logger.warn('Unauthorised WhatsApp sender blocked', { phone: from });

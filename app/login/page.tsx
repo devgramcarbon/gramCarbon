@@ -83,7 +83,7 @@ function LoginForm() {
 
 function RightPanel() {
   return (
-    <div className="hidden lg:flex flex-col items-center justify-center h-full relative overflow-hidden bg-green-600">
+    <div className="flex flex-col items-center justify-center h-full w-full relative overflow-hidden bg-green-600">
       <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-emerald-700" />
       <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10" />
       <div className="absolute -bottom-20 -left-12 w-72 h-72 rounded-full bg-white/5" />
@@ -103,19 +103,21 @@ function RightPanel() {
 
 export default function LoginPage() {
   return (
-    <div className="h-screen flex">
-      <div className="flex-1 flex items-center justify-center p-6 bg-white lg:max-w-[480px]">
+    <div className="min-h-screen flex bg-white dark:bg-[#161b22]">
+      <div className="flex-1 flex items-center justify-center p-5 sm:p-8 lg:max-w-[480px]">
         <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center mb-8 lg:hidden">
-            <Image src="/gramicon.png" alt="gramCarbon Console" width={48} height={48} className="object-contain mb-3" />
-            <h1 className="text-xl font-bold text-gray-900">gramCarbon Console</h1>
+          {/* Mobile: centered logo */}
+          <div className="flex flex-col items-center mb-7 lg:hidden">
+            <Image src="/gramicon.png" alt="gramCarbon Console" width={52} height={52} className="object-contain mb-3" />
+            <h1 className="text-lg font-bold text-gray-900">gramCarbon Console</h1>
           </div>
+          {/* Desktop: left-aligned logo */}
           <div className="hidden lg:flex items-center gap-3 mb-2">
             <Image src="/gramicon.png" alt="gramCarbon Console" width={40} height={40} className="object-contain" />
             <span className="font-bold text-gray-900 text-lg">gramCarbon Console</span>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-1">Welcome back</h2>
-          <p className="text-sm text-gray-500 mb-8">Sign in to your admin dashboard</p>
+          <h2 className="text-2xl font-bold text-gray-900 lg:mt-6 mb-1">Welcome back</h2>
+          <p className="text-sm text-gray-500 mb-7 sm:mb-8">Sign in to your admin dashboard</p>
           <Suspense fallback={<div className="text-center text-sm text-gray-400 py-4">Loading...</div>}>
             <LoginForm />
           </Suspense>
@@ -124,7 +126,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-      <div className="flex-1">
+      <div className="hidden lg:flex flex-1">
         <RightPanel />
       </div>
     </div>

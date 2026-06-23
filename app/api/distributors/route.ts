@@ -25,16 +25,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     : {};
 
   const [distributors, total] = await Promise.all([
-    Distributor.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Distributor.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Distributor.countDocuments(query),
   ]);
 
   const phones = distributors.map((d) => d.phone);
-  const stocks = await Stock.find({ distributorPhone: { $in: phones } });
+  const stocks = await Stock.find({ distributorPhone: { $in: phones } }).lean();
   const stockMap = Object.fromEntries(stocks.map((s) => [s.distributorPhone, s]));
 
   const data = distributors.map((d) => ({
-    ...d.toObject(),
+    ...d,
     stock: stockMap[d.phone] || { receivedKg: 0, soldKg: 0 },
   }));
 

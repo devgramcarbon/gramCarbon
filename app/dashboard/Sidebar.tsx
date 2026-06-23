@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import {
   LayoutDashboard, Users, UserCheck, Package, ShoppingCart,
   MessageSquare, FileText, BarChart3, Settings, Shield, Terminal,
-  LogOut, X, Menu, Wifi, WifiOff, type LucideIcon,
+  LogOut, X, Wifi, WifiOff, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,14 +35,15 @@ const NAV_ITEMS: NavItem[] = [
 interface SidebarProps {
   user: { name?: string; role?: string } | null;
   connected?: boolean;
+  mobileOpen?: boolean;
+  setMobileOpen?: (open: boolean) => void;
 }
 
-export default function Sidebar({ user, connected = false }: SidebarProps) {
+export default function Sidebar({ user, connected = false, mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  useEffect(() => { setMobileOpen?.(false); }, [pathname]);
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
@@ -58,7 +59,8 @@ export default function Sidebar({ user, connected = false }: SidebarProps) {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-5 ">
         <div className="flex-shrink-0">
-          <img src="/gramcarbonlogo.png" alt="gramCarbon Console" className="h-6 w-auto object-contain" />
+          <img src="/gramcarbonlogo.png" alt="gramCarbon Console" className="h-6 w-auto object-contain dark:hidden" />
+          <img src="/green.png" alt="gramCarbon Console" className="h-6 w-auto object-contain hidden dark:block" />
         </div>
 
       </div>
@@ -86,13 +88,13 @@ export default function Sidebar({ user, connected = false }: SidebarProps) {
         })}
       </nav>
 
-      <div className="px-3 pb-4 space-y-2 border-t border-gray-100 pt-3">
+      <div className="px-3 pb-4 space-y-2 border-t border-gray-100 dark:border-[#21262d] pt-3">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-gray-400">
           {connected
             ? <><Wifi size={13} className="text-green-500" /><span className="text-green-600">Live</span></>
             : <><WifiOff size={13} /><span>Offline</span></>}
         </div>
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1c2128]">
           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">{user?.name?.[0]?.toUpperCase() || 'A'}</span>
           </div>
@@ -110,23 +112,16 @@ export default function Sidebar({ user, connected = false }: SidebarProps) {
 
   return (
     <>
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-40 lg:hidden w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm"
-      >
-        <Menu size={19} className="text-gray-700" />
-      </button>
-
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-100 h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-white dark:bg-[#161b22] border-r border-gray-100 dark:border-[#21262d] h-screen sticky top-0">
         <Content />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl">
-            <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg">
-              <X size={17} className="text-gray-500" />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen?.(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-[#161b22] shadow-2xl">
+            <button onClick={() => setMobileOpen?.(false)} className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 dark:hover:bg-[#21262d] rounded-lg">
+              <X size={17} className="text-gray-500 dark:text-[#768390]" />
             </button>
             <Content />
           </div>

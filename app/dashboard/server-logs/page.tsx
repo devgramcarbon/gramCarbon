@@ -131,7 +131,7 @@ export default function ServerLogsPage() {
             placeholder="Search message..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
         <select

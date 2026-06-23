@@ -17,7 +17,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (unreadOnly) query.isRead = false;
 
   const [notifications, unreadCount] = await Promise.all([
-    Notification.find(query).sort({ createdAt: -1 }).limit(limit),
+    Notification.find(query).sort({ createdAt: -1 }).limit(limit).lean(),
     Notification.countDocuments({ isRead: false }),
   ]);
 

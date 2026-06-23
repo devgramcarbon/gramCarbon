@@ -23,7 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     : {};
 
   const [users, total] = await Promise.all([
-    User.find(query).select('-password').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    User.find(query).select('-password').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     User.countDocuments(query),
   ]);
 

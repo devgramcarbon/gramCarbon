@@ -5,6 +5,7 @@ import Sale from '@/lib/models/Sale';
 import Stock from '@/lib/models/Stock';
 import Farmer from '@/lib/models/Farmer';
 import AuditLog from '@/lib/models/AuditLog';
+import type { IAuditLog } from '@/lib/models/AuditLog';
 import { getUserFromRequest } from '@/lib/auth';
 import { unauthorized, success, error } from '@/lib/apiResponse';
 import logger from '@/lib/logger';
@@ -39,10 +40,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       cooperativeAgg,
       recentAuditLogs,
     ] = await Promise.all([
-      Stock.find({}),
-      Distributor.find({}),
-      Sale.find({}).sort({ saleDate: -1 }).limit(10),
-      Farmer.find({ isActive: true }).sort({ createdAt: -1 }).limit(8).select('name farmerId district gender animalCount createdAt mobile'),
+      Stock.find({}).lean(),
+      Distributor.find({}).lean(),
+      Sale.find({}).sort({ saleDate: -1 }).limit(10).lean(),
+      Farmer.find({ isActive: true }).sort({ createdAt: -1 }).limit(8).select('name farmerId district gender animalCount createdAt mobile').lean(),
       Farmer.countDocuments({ isActive: true }),
       Sale.aggregate([{ $group: { _id: null, total: { $sum: '$cowCount' } } }]),
       Sale.aggregate([
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { $sort: { count: -1 } },
         { $limit: 8 },
       ]),
-      AuditLog.find({}).sort({ createdAt: -1 }).limit(10).select('action entity userEmail createdAt newData'),
+      AuditLog.find({}).sort({ createdAt: -1 }).limit(10).select('action entity userEmail createdAt newData').lean<IAuditLog[]>(),
     ]);
 
     const totalDistributed = stocks.reduce((sum, s) => sum + (s.receivedKg || 0), 0);
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Recent activities from audit logs
-    const recentActivities = (recentAuditLogs as Array<{ action: string; entity: string; userEmail: string; createdAt: Date; newData?: Record<string, unknown> }>).map((log) => ({
+    const recentActivities = recentAuditLogs.map((log) => ({
       action: log.action,
       entity: log.entity,
       user: log.userEmail,
