@@ -27,26 +27,30 @@ function DashboardContent({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0d1117]">
+    <div className="flex min-h-screen bg-transparent">
       <Sidebar user={user} connected={socket?.connected} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#161b22]/90 backdrop-blur border-b border-gray-100 dark:border-[#21262d] px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-3 h-14">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-[#30363d] bg-white dark:bg-[#1c2128] hover:bg-gray-50 dark:hover:bg-[#21262d] transition-colors"
+              className="lg:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-50 dark:hover:bg-[#21262d] transition-colors"
             >
               <Menu size={17} className="text-gray-600 dark:text-[#cdd9e5]" />
             </button>
-            <div className="min-w-0">
-              <p className="hidden sm:block text-xs text-gray-500 dark:text-[#768390] truncate leading-tight">Welcome back,</p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-[#cdd9e5] truncate leading-tight">{user?.name || 'Admin'}</p>
+            <div className="flex-shrink-0 lg:hidden flex">
+          <img src="/gramcarbonlogo.png" alt="gramCarbon Console" className="h-6 w-auto object-contain dark:hidden" />
+          <img src="/white.png" alt="gramCarbon Console" className="h-6 w-auto object-contain hidden dark:block" />
+        </div>
+            <div className="hidden lg:flex flex-col">
+              <span className="text-xs text-gray-400 dark:text-[#768390] leading-tight">Welcome back,</span>
+              <span className="text-sm font-semibold text-gray-800 dark:text-[#cdd9e5] leading-tight">{user?.name || 'Admin'}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <ThemeToggle />
             <NotificationCenter />
-            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">
                 {user?.name?.[0]?.toUpperCase() || 'A'}
               </span>

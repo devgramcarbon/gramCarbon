@@ -6,37 +6,35 @@ import {
   AreaChart, Area, Tooltip as RechartTooltip,
 } from 'recharts';
 import {
-  Info, Grid3X3, List, ChevronRight, X, CheckCircle2, Star,
-  MapPin, Calendar, Building2, Users, Leaf, Droplets, Factory,
+  Info, Grid3X3, List, ChevronRight, X, CheckCircle2,
+  MapPin, Calendar, Building2, Users, Leaf, Droplets, Factory, Maximize2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-// Two project families × 3 states + selected
+// Two project families × 3 states
 type OffsetStatus =
   | 'mm_full'   // Milky Mist — full offset     → grey dark blue
   | 'mm_acc'    // Milky Mist — accumulating     → green light blue
   | 'mm_frac'   // Milky Mist — fractional       → very light blue
   | 'np_full'   // NP project — full offset      → mustard
   | 'np_acc'    // NP project — accumulating     → lighter mustard
-  | 'np_frac'   // NP project — fractional       → very light / cream
-  | 'selected'; // currently highlighted cube    → blue
+  | 'np_frac';  // NP project — fractional       → very light / cream
 
 interface Cube {
   id: string;
   value: number;
   status: OffsetStatus;
-  badge?: 'check' | 'star';
+  badge?: 'check';
 }
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 const C: Record<OffsetStatus, { bg: string; color: string; label: string }> = {
-  mm_full:  { bg: '#15803d', color: '#ffffff', label: 'Mm Full Offset'    },
-  mm_acc:   { bg: '#4ade80', color: '#14532d', label: 'Mm Accumulating'   },
-  mm_frac:  { bg: '#dcfce7', color: '#166534', label: 'Mm Fractional'     },
+  mm_full:  { bg: '#2c3e6b', color: '#ffffff', label: 'Mm Full Offset'    },
+  mm_acc:   { bg: '#5cb8c4', color: '#0d2a3d', label: 'Mm Accumulating'   },
+  mm_frac:  { bg: '#daf4f8', color: '#1e4a5f', label: 'Mm Fractional'     },
   np_full:  { bg: '#c9870e', color: '#ffffff', label: 'NP Full'           },
   np_acc:   { bg: '#e8c45a', color: '#7a4f10', label: 'ACC'               },
   np_frac:  { bg: '#f7f0dc', color: '#8a6820', label: 'Fractional'        },
-  selected: { bg: '#2563eb', color: '#ffffff', label: 'Selected'          },
 };
 
 // ─── Cow Icon ────────────────────────────────────────────────────────────────
@@ -49,11 +47,11 @@ function CowIcon({ size = 32, color, className }: { size?: number; color?: strin
         height: className ? undefined : size,
         flexShrink: 0,
         backgroundColor: color ?? 'currentColor',
-        WebkitMaskImage: 'url(/cow.png)',
+        WebkitMaskImage: 'url(/cowicon.png)',
         WebkitMaskSize: 'contain',
         WebkitMaskRepeat: 'no-repeat',
         WebkitMaskPosition: 'center',
-        maskImage: 'url(/cow.png)',
+        maskImage: 'url(/cowicon.png)',
         maskSize: 'contain',
         maskRepeat: 'no-repeat',
         maskPosition: 'center',
@@ -123,7 +121,7 @@ const GRID: Cube[] = [
   { id: 'r4c10', value: 0.0028, status: 'mm_frac' },
   { id: 'r4c11', value: 0.0028, status: 'mm_frac' },
   { id: 'r4c12', value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c13', value: 1.0000, status: 'selected', badge: 'star' },
+  { id: 'r4c13', value: 1.0000, status: 'mm_full', badge: 'check' },
   { id: 'r4c14', value: 0.0028, status: 'mm_frac' },
   // ── Row 5 — NP project starts ────────────────────────────────────────────
   { id: 'r5c1',  value: 0.0023, status: 'np_frac' },
@@ -157,24 +155,57 @@ const GRID: Cube[] = [
   { id: 'r6c14', value: 0.7390, status: 'np_acc'  },
 ];
 
-// ─── Other hardcoded data ─────────────────────────────────────────────────────
-const TODAY_FLOW_VALS = [0.0025, 0.0031, 0.0018, 0.0040, 0.0022];
-const FLOW_ACCUMULATED = 0.2475;
+const COWS_NAINAR    = 102;
+const DAYS_NAINAR    = 275;
+const TOTAL_COW_DAYS = COWS_NAINAR * DAYS_NAINAR;
+const FULL_CC_NAINAR = Math.floor(TOTAL_COW_DAYS / 730);
+const FRAC_CC_NAINAR = TOTAL_COW_DAYS % 730;
+
+const TODAY_FLOW_VALS = [
+  parseFloat((2 / 730).toFixed(4)),
+  parseFloat((1 / 730).toFixed(4)),
+  parseFloat((3 / 730).toFixed(4)),
+  parseFloat((2 / 730).toFixed(4)),
+  parseFloat((1 / 730).toFixed(4)),
+];
+const FLOW_ACCUMULATED = parseFloat((COWS_NAINAR / 730).toFixed(4));
+
+const MONTHLY_STATUS = [
+  { month: 'Jan', tCO2: 0.842, status: 'full'    },
+  { month: 'Feb', tCO2: 0.756, status: 'full'    },
+  { month: 'Mar', tCO2: 0.923, status: 'full'    },
+  { month: 'Apr', tCO2: 0.612, status: 'partial' },
+  { month: 'May', tCO2: 0.789, status: 'full'    },
+  { month: 'Jun', tCO2: 0.445, status: 'partial' },
+  { month: 'Jul', tCO2: 0.234, status: 'partial' },
+  { month: 'Aug', tCO2: 0.891, status: 'full'    },
+  { month: 'Sep', tCO2: 0.667, status: 'full'    },
+  { month: 'Oct', tCO2: 0.523, status: 'partial' },
+  { month: 'Nov', tCO2: 0,     status: 'pending' },
+  { month: 'Dec', tCO2: 0,     status: 'pending' },
+];
 
 const BY_PROJECT = [
-  { name: 'Milky Mist',   value: 4.521,  color: '#22c55e' },
-  { name: 'Milma',        value: 3.2142, color: '#3d5a73' },
-  { name: 'Akshayakalpa', value: 2.1044, color: '#22c55e' },
+  { name: 'Milky Mist',   value: 4.521,  color: '#0d9488' },
+  { name: 'Milma',        value: 3.2142, color: '#2c3e6b' },
+  { name: 'Akshayakalpa', value: 2.1044, color: '#7c3aed' },
   { name: 'Heritage',     value: 1.0025, color: '#c9870e' },
 ];
 
 const TOP_LOCATIONS = [
-  { name: 'Erode, TN',     value: 2.521,  x: 90, y: 152 },
-  { name: 'Palakkad, KL',  value: 1.8921, x: 83, y: 158 },
-  { name: 'Alappuzha, KL', value: 1.213,  x: 79, y: 165 },
-  { name: 'Hassan, KA',    value: 0.9912, x: 87, y: 144 },
-  { name: 'Nagaur, RJ',    value: 0.7423, x: 68, y: 72  },
+  { name: 'Erode, TN',     value: 2.521,  lat: 11.34, lon: 77.72 },
+  { name: 'Palakkad, KL',  value: 1.8921, lat: 10.78, lon: 76.65 },
+  { name: 'Alappuzha, KL', value: 1.213,  lat: 9.49,  lon: 76.33 },
+  { name: 'Hassan, KA',    value: 0.9912, lat: 13.00, lon: 76.10 },
+  { name: 'Nagaur, RJ',    value: 0.7423, lat: 27.20, lon: 74.62 },
 ];
+
+// SVG path extents (from in.svg): M-coord range x 173.4–840.5, y 173.8–941.1 within 1000×1000 viewBox
+const INDIA_BOUNDS = {
+  lonMin: 68, lonMax: 97.5, latMin: 8, latMax: 37.6,
+  svgXMin: 173.4, svgXMax: 840.5,
+  svgYMin: 173.8, svgYMax: 941.1,
+};
 
 const ACTIVITY_DATA = Array.from({ length: 24 }, (_, i) => ({
   t: i,
@@ -203,7 +234,7 @@ function hashNum(s: string, mod: number) {
 }
 
 function deriveOffsetDetails(cube: Cube) {
-  const isMM = cube.status.startsWith('mm') || cube.status === 'selected';
+  const isMM = cube.status.startsWith('mm');
   const h = hashNum(cube.id, 1000);
   const societies = isMM ? MM_SOCIETIES : NP_SOCIETIES;
   const locations  = isMM ? MM_LOCATIONS  : NP_LOCATIONS;
@@ -225,9 +256,9 @@ function deriveOffsetDetails(cube: Cube) {
 }
 
 const OFFSET_COMPOSITION = [
-  { name: 'Society A', value: 18, color: '#93c5fd' },
-  { name: 'Society B', value: 12, color: '#4ade80' },
-  { name: 'Society C', value: 25, color: '#22c55e' },
+  { name: 'Society A', value: 18, color: '#7c3aed' },
+  { name: 'Society B', value: 12, color: '#5cb8c4' },
+  { name: 'Society C', value: 25, color: '#0d9488' },
   { name: 'Society D', value: 45, color: '#c9870e' },
 ];
 
@@ -262,11 +293,7 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           <CheckCircle2 size={9} />
         </div>
       )}
-      {cube.badge === 'star' && (
-        <div className="absolute top-0.5 right-0.5">
-          <Star size={8} className="fill-yellow-300 text-yellow-300" />
-        </div>
-      )}
+
       <CowIcon className="w-5 h-5 sm:w-8 sm:h-8" color={cfg.color} />
       <span className="hidden sm:block text-[7px] font-mono leading-none mt-0.5 tabular-nums" style={{ opacity: 0.85 }}>
         {cube.value.toFixed(4)}
@@ -285,12 +312,17 @@ function DetailRow({
       <div className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-400">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-[10px] text-gray-400 leading-none mb-0.5">{label}</p>
-        <p className={`text-xs font-medium ${green ? 'text-green-600' : 'text-gray-800'}`}>
+        <p className={`text-xs font-medium ${green ? 'text-teal-600' : 'text-gray-800'}`}>
           {value}
           {link && (
-            <span className="ml-2 text-green-600 hover:underline cursor-pointer text-[10px]">
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 text-teal-600 hover:underline text-[10px]"
+            >
               View on Map
-            </span>
+            </a>
           )}
         </p>
       </div>
@@ -298,46 +330,37 @@ function DetailRow({
   );
 }
 
-function MilestoneItem({
-  label, emoji, name, done, progress,
-}: {
-  label: string; emoji: string; name: string; done?: boolean; progress?: number;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-1 text-center min-w-0">
-      <div className={`text-xl ${done ? '' : 'opacity-40 grayscale'}`}>{emoji}</div>
-      <p className="text-[8px] text-gray-400 leading-none">{label}</p>
-      <p className="text-[9px] font-semibold text-gray-600 leading-none">{name}</p>
-      {done ? (
-        <CheckCircle2 size={11} className="text-green-500" />
-      ) : (
-        <p className="text-[8px] text-gray-400 leading-none">{progress?.toLocaleString()}</p>
-      )}
-    </div>
-  );
-}
 
 function IndiaMapSVG() {
   return (
-    <svg viewBox="0 0 160 210" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M62,12 L75,8 L92,9 L108,14 L122,22 L133,34 L140,46 L144,58 L143,72
-           L139,84 L141,96 L138,108 L133,120 L127,131 L120,140 L113,149 L108,156
-           L103,161 L98,165 L93,167 L89,165 L84,159 L78,150 L71,138 L65,124
-           L60,110 L56,96 L54,83 L56,70 L60,57 L62,44 L60,31 Z"
-        fill="#dcfce7"
-        stroke="#86efac"
-        strokeWidth="1.2"
-        fillOpacity="0.7"
-      />
-      {TOP_LOCATIONS.map((loc, i) => (
-        <g key={i}>
-          <circle cx={loc.x} cy={loc.y} r={6} fill="#22c55e" opacity={0.2} />
-          <circle cx={loc.x} cy={loc.y} r={3} fill="#16a34a" />
-          <circle cx={loc.x} cy={loc.y} r={1.5} fill="white" />
-        </g>
-      ))}
-    </svg>
+    <div className="relative w-full h-full">
+      <img src="/in.svg" className="w-full h-full object-fill" alt="India" />
+      {TOP_LOCATIONS.map((loc, i) => {
+        const svgX = INDIA_BOUNDS.svgXMin + ((loc.lon - INDIA_BOUNDS.lonMin) / (INDIA_BOUNDS.lonMax - INDIA_BOUNDS.lonMin)) * (INDIA_BOUNDS.svgXMax - INDIA_BOUNDS.svgXMin);
+        const svgY = INDIA_BOUNDS.svgYMax - ((loc.lat - INDIA_BOUNDS.latMin) / (INDIA_BOUNDS.latMax - INDIA_BOUNDS.latMin)) * (INDIA_BOUNDS.svgYMax - INDIA_BOUNDS.svgYMin);
+        const left = `${(svgX / 1000) * 100}%`;
+        const top  = `${(svgY / 1000) * 100}%`;
+        return (
+          <div
+            key={i}
+            className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-default"
+            style={{ left, top }}
+          >
+            <span className="absolute inline-flex h-3.5 w-3.5 -translate-x-[2px] -translate-y-[2px]">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-50" />
+            </span>
+            <div className="relative w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-md" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 pointer-events-none">
+              <div className="bg-gray-900 text-white rounded-lg px-2 py-1.5 whitespace-nowrap text-[9px] shadow-xl">
+                <p className="font-semibold leading-tight">{loc.name}</p>
+                <p className="text-teal-300 font-mono leading-tight mt-0.5">{loc.value.toFixed(4)} tCO₂e</p>
+              </div>
+              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -346,6 +369,7 @@ export default function DashboardPage() {
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isPanelClosing, setIsPanelClosing] = useState(false);
+  const [mapEnlarged, setMapEnlarged] = useState(false);
 
   function closePanel() {
     setIsPanelClosing(true);
@@ -420,7 +444,7 @@ export default function DashboardPage() {
             <span className="text-gray-300 px-1">···</span>
           </div>
           <div className="flex items-baseline gap-1.5 mb-3">
-            <span className="text-2xl font-bold text-green-600">{FLOW_ACCUMULATED.toFixed(4)}</span>
+            <span className="text-2xl font-bold text-teal-600">{FLOW_ACCUMULATED.toFixed(4)}</span>
             <span className="text-xs text-gray-400">/ 1.0000 tCO₂e</span>
           </div>
           <div className="flex items-center gap-3">
@@ -454,9 +478,9 @@ export default function DashboardPage() {
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { iconColor: '#6b7280', bgColor: '#f3f4f6', value: '0.0025', label: 'Smallest Fraction' },
-            { iconColor: C.mm_full.color, bgColor: C.mm_full.bg + '22', value: '1.0000', label: '= 1 Full Offset (1 Ton CO₂e)' },
-            { iconColor: '#0d9488', bgColor: '#f0fdfa', value: '8.5396', label: 'In Progress (Tons CO₂e)' },
+            { iconColor: '#7c3aed', bgColor: '#f5f3ff', value: (1 / 730).toFixed(4), label: 'Fractional Credit (1 Cow·Day)' },
+            { iconColor: '#0f766e', bgColor: '#f0fdfa', value: '1.0000', label: '= 1 Full Offset (730 Cow·Days)' },
+            { iconColor: '#b45309', bgColor: '#fffbeb', value: (FULL_CC_NAINAR + FRAC_CC_NAINAR / 730).toFixed(4), label: `NainarPalayam — ${FULL_CC_NAINAR} Full + ${FRAC_CC_NAINAR} Frac CC` },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -503,7 +527,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <button className="mt-2 text-[10px] text-green-600 hover:underline w-full text-left">
+            <button className="mt-2 text-[10px] text-teal-600 hover:underline w-full text-left">
               View All Projects
             </button>
           </div>
@@ -512,16 +536,18 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-700">By Location (Top 5)</p>
-              <button className="text-[10px] text-green-600 hover:underline">View Map</button>
+              <button onClick={() => setMapEnlarged(true)} className="text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
+                <Maximize2 size={13} />
+              </button>
             </div>
-            <div className="h-28 mb-2">
+            <div className="h-52 mb-2">
               <IndiaMapSVG />
             </div>
             <div className="space-y-0.5">
               {TOP_LOCATIONS.map((loc, i) => (
                 <div key={i} className="flex items-center justify-between text-[10px]">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
                     <span className="text-gray-600 truncate">{loc.name}</span>
                   </div>
                   <span className="text-gray-400 font-mono ml-1 flex-shrink-0">{loc.value.toFixed(4)}</span>
@@ -530,15 +556,32 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Milestones */}
+          {/* Monthly Status */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-700 mb-3">Milestones</p>
-            <div className="flex items-end justify-between gap-1">
-              <MilestoneItem label="100 t"     emoji="🌱" name="Sapling"   done />
-              <MilestoneItem label="500 t"     emoji="🌳" name="Tree"      done />
-              <MilestoneItem label="1,000 t"   emoji="🌲" name="Grove"     done />
-              <MilestoneItem label="10,000 t"  emoji="🌿" name="Forest"    progress={5287} />
-              <MilestoneItem label="100,000 t" emoji="⛰️" name="Landscape" progress={12842} />
+            <p className="text-xs font-semibold text-gray-700 mb-3">Monthly Status</p>
+            <div className="grid grid-cols-6 gap-1.5">
+              {MONTHLY_STATUS.map((m, i) => (
+                <div key={i} className="flex flex-col items-center gap-1" title={m.status !== 'pending' ? `${m.tCO2.toFixed(3)} tCO₂e` : 'Pending'}>
+                  <div
+                    className="w-full aspect-square rounded-md flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        m.status === 'full'    ? '#ccfbf1' :
+                        m.status === 'partial' ? '#fef3c7' : '#f3f4f6',
+                    }}
+                  >
+                    {m.status === 'full'    && <CheckCircle2 size={11} className="text-teal-600" />}
+                    {m.status === 'partial' && <div className="w-2 h-2 rounded-full bg-amber-400" />}
+                    {m.status === 'pending' && <div className="w-2 h-2 rounded-full bg-gray-300" />}
+                  </div>
+                  <span className="text-[9px] text-gray-400 leading-none">{m.month}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-3 text-[9px] text-gray-400">
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-teal-100" /><span>On Track</span></div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-amber-100" /><span>Partial</span></div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-gray-100" /><span>Pending</span></div>
             </div>
           </div>
 
@@ -546,10 +589,10 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-xs font-semibold text-gray-700 mb-1">Today's Activity</p>
             <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-2xl font-bold text-gray-900">0.2475</span>
+              <span className="text-2xl font-bold text-gray-900">{FLOW_ACCUMULATED.toFixed(4)}</span>
             </div>
             <p className="text-[10px] text-gray-400 mb-0.5">TONS CO₂e</p>
-            <p className="text-[10px] text-green-600 font-semibold mb-2">↑ 12.4% vs yesterday</p>
+            <p className="text-[10px] text-teal-600 font-semibold mb-2">↑ 12.4% vs yesterday</p>
             <ResponsiveContainer width="100%" height={55}>
               <AreaChart data={ACTIVITY_DATA} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                 <defs>
@@ -681,7 +724,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-1">Today's Activity</p>
             <div className="flex items-baseline gap-1 mb-1">
-              <span className="text-lg font-bold text-gray-900">0.2475</span>
+              <span className="text-lg font-bold text-gray-900">{FLOW_ACCUMULATED.toFixed(4)}</span>
               <span className="text-[10px] text-gray-400">TONS CO₂e</span>
             </div>
             <ResponsiveContainer width="100%" height={48}>
@@ -698,6 +741,36 @@ export default function DashboardPage() {
           </div>
         </div>
         </>
+      )}
+
+      {/* ── Map Enlarged Modal ─────────────────────────────────────────────── */}
+      {mapEnlarged && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <p className="text-sm font-bold text-gray-900">By Location (Top 5)</p>
+              <button onClick={() => setMapEnlarged(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row">
+              <div className="flex-1 p-4" style={{ minHeight: 380 }}>
+                <IndiaMapSVG />
+              </div>
+              <div className="sm:w-56 border-t sm:border-t-0 sm:border-l border-gray-100 px-5 py-4 flex flex-col justify-center space-y-3">
+                {TOP_LOCATIONS.map((loc, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-700 truncate">{loc.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono flex-shrink-0">{loc.value.toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

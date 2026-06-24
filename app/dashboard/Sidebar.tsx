@@ -60,7 +60,7 @@ export default function Sidebar({ user, connected = false, mobileOpen = false, s
       <div className="flex items-center gap-3 px-5 py-5 ">
         <div className="flex-shrink-0">
           <img src="/gramcarbonlogo.png" alt="gramCarbon Console" className="h-6 w-auto object-contain dark:hidden" />
-          <img src="/green.png" alt="gramCarbon Console" className="h-6 w-auto object-contain hidden dark:block" />
+          <img src="/white.png" alt="gramCarbon Console" className="h-6 w-auto object-contain hidden dark:block" />
         </div>
 
       </div>
@@ -73,14 +73,14 @@ export default function Sidebar({ user, connected = false, mobileOpen = false, s
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setMobileOpen?.(false)}
               className={`relative flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 ${
                 active
-                  ? 'bg-green-100 text-green-700 font-semibold'
+                  ? 'bg-teal-50 text-teal-700 font-semibold'
                   : 'text-gray-500 font-normal hover:bg-gray-50 hover:text-gray-800'
               }`}
             >
-              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-[60%] bg-green-500 rounded-r-full shadow-[0_0_8px_rgba(34,197,94,0.45)]" />}
+              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-[60%] bg-teal-500 rounded-r-full shadow-[0_0_8px_rgba(13,148,136,0.45)]" />}
               <Icon size={15} className="flex-shrink-0" />
               <span>{item.label}</span>
             </Link>
@@ -91,11 +91,11 @@ export default function Sidebar({ user, connected = false, mobileOpen = false, s
       <div className="px-3 pb-4 space-y-2 border-t border-gray-100 dark:border-[#21262d] pt-3">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-gray-400">
           {connected
-            ? <><Wifi size={13} className="text-green-500" /><span className="text-green-600">Live</span></>
+            ? <><Wifi size={13} className="text-teal-500" /><span className="text-teal-600">Live</span></>
             : <><WifiOff size={13} /><span>Offline</span></>}
         </div>
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1c2128]">
-          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">{user?.name?.[0]?.toUpperCase() || 'A'}</span>
           </div>
           <div className="flex-1 min-w-0">
