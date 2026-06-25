@@ -185,99 +185,32 @@ function OffsetTile({
   );
 }
 
-// ─── Hardcoded Grid Data ──────────────────────────────────────────────────────
-// Rows 1–4: Milky Mist project  |  Rows 5–6: mix with NP project
+// ─── Grid Data ────────────────────────────────────────────────────────────────
+// MM: 65 full (all Kattuputhur) + 2 accumulating + 11 fractional = 78
+// NP: 5 full + 1 accumulating (450 cow·days → 0.7397) = 6
+// Total: 84 tiles  (6 rows × 14 cols)
 const GRID: Cube[] = [
-  // ── Row 1 — Mm ───────────────────────────────────────────────────────────
-  { id: 'r1c1',  value: 0.0025, status: 'mm_frac' },
-  { id: 'r1c2',  value: 0.0041, status: 'mm_frac' },
-  { id: 'r1c3',  value: 0.0030, status: 'mm_frac' },
-  { id: 'r1c4',  value: 0.0012, status: 'mm_frac' },
-  { id: 'r1c5',  value: 0.7132, status: 'mm_acc'  },
-  { id: 'r1c6',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r1c7',  value: 0.0024, status: 'mm_frac' },
-  { id: 'r1c8',  value: 0.0034, status: 'mm_frac' },
-  { id: 'r1c9',  value: 1.0000, status: 'mm_full' },
-  { id: 'r1c10', value: 0.0016, status: 'mm_frac' },
-  { id: 'r1c11', value: 0.0029, status: 'mm_frac' },
-  { id: 'r1c12', value: 0.0038, status: 'mm_frac' },
-  { id: 'r1c13', value: 1.0000, status: 'mm_full', badge: 'check' },
-  { id: 'r1c14', value: 0.0011, status: 'mm_frac' },
-  // ── Row 2 — Mm ───────────────────────────────────────────────────────────
-  { id: 'r2c1',  value: 0.0035, status: 'mm_frac' },
-  { id: 'r2c2',  value: 0.0039, status: 'mm_frac' },
-  { id: 'r2c3',  value: 0.0024, status: 'mm_frac' },
-  { id: 'r2c4',  value: 1.0000, status: 'mm_full' },
-  { id: 'r2c5',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c6',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c7',  value: 0.9233, status: 'mm_acc'  },
-  { id: 'r2c8',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c9',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c10', value: 0.0033, status: 'mm_frac' },
-  { id: 'r2c11', value: 0.0033, status: 'mm_frac' },
-  { id: 'r2c12', value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c13', value: 0.0028, status: 'mm_frac' },
-  { id: 'r2c14', value: 0.0028, status: 'mm_frac' },
-  // ── Row 3 — Mm ───────────────────────────────────────────────────────────
-  { id: 'r3c1',  value: 0.8439, status: 'mm_acc',  badge: 'check' },
-  { id: 'r3c2',  value: 0.0019, status: 'mm_frac' },
-  { id: 'r3c3',  value: 0.0024, status: 'mm_frac' },
-  { id: 'r3c4',  value: 0.0024, status: 'mm_frac' },
-  { id: 'r3c5',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r3c6',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r3c7',  value: 1.0000, status: 'mm_full' },
-  { id: 'r3c8',  value: 0.0022, status: 'mm_frac' },
-  { id: 'r3c9',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r3c10', value: 0.0032, status: 'mm_frac' },
-  { id: 'r3c11', value: 0.0033, status: 'mm_frac' },
-  { id: 'r3c12', value: 0.0028, status: 'mm_frac' },
-  { id: 'r3c13', value: 0.0028, status: 'mm_frac' },
-  { id: 'r3c14', value: 0.0026, status: 'mm_frac' },
-  // ── Row 4 — Mm ───────────────────────────────────────────────────────────
-  { id: 'r4c1',  value: 0.0025, status: 'mm_frac' },
-  { id: 'r4c2',  value: 0.0009, status: 'mm_frac' },
-  { id: 'r4c3',  value: 0.0024, status: 'mm_frac' },
-  { id: 'r4c4',  value: 0.0023, status: 'mm_frac' },
-  { id: 'r4c5',  value: 0.7785, status: 'mm_acc'  },
-  { id: 'r4c6',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c7',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c8',  value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c9',  value: 0.0035, status: 'mm_frac' },
-  { id: 'r4c10', value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c11', value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c12', value: 0.0028, status: 'mm_frac' },
-  { id: 'r4c13', value: 1.0000, status: 'mm_full', badge: 'check' },
-  { id: 'r4c14', value: 0.0028, status: 'mm_frac' },
-  // ── Row 5 — NP project starts ────────────────────────────────────────────
-  { id: 'r5c1',  value: 0.0023, status: 'np_frac' },
-  { id: 'r5c2',  value: 1.0000, status: 'np_full', badge: 'check' },
-  { id: 'r5c3',  value: 0.0028, status: 'np_frac' },
-  { id: 'r5c4',  value: 0.0022, status: 'np_frac' },
-  { id: 'r5c5',  value: 0.0028, status: 'np_frac' },
-  { id: 'r5c6',  value: 1.0000, status: 'np_full' },
-  { id: 'r5c7',  value: 0.6812, status: 'np_acc'  },
-  { id: 'r5c8',  value: 0.0028, status: 'np_frac' },
-  { id: 'r5c9',  value: 0.0028, status: 'np_frac' },
-  { id: 'r5c10', value: 0.0028, status: 'np_frac' },
-  { id: 'r5c11', value: 0.0028, status: 'np_frac' },
-  { id: 'r5c12', value: 0.8140, status: 'np_acc'  },
-  { id: 'r5c13', value: 0.0028, status: 'np_frac' },
-  { id: 'r5c14', value: 0.0026, status: 'np_frac' },
-  // ── Row 6 — NP project ───────────────────────────────────────────────────
-  { id: 'r6c1',  value: 0.0025, status: 'np_frac' },
-  { id: 'r6c2',  value: 0.0030, status: 'np_frac' },
-  { id: 'r6c3',  value: 0.0028, status: 'np_frac' },
-  { id: 'r6c4',  value: 0.0030, status: 'np_frac' },
-  { id: 'r6c5',  value: 0.0028, status: 'np_frac' },
-  { id: 'r6c6',  value: 0.0028, status: 'np_frac' },
-  { id: 'r6c7',  value: 0.0028, status: 'np_frac' },
-  { id: 'r6c8',  value: 0.0028, status: 'np_frac' },
-  { id: 'r6c9',  value: 0.0030, status: 'np_frac' },
-  { id: 'r6c10', value: 0.0027, status: 'np_frac' },
-  { id: 'r6c11', value: 1.0000, status: 'np_full' },
-  { id: 'r6c12', value: 0.0028, status: 'np_frac' },
-  { id: 'r6c13', value: 0.0020, status: 'np_frac' },
-  { id: 'r6c14', value: 0.7390, status: 'np_acc'  },
+  // ── MM — 65 full credits (Kattuputhur) ───────────────────────────────────
+  ...Array.from({ length: 65 }, (_, i): Cube => ({ id: `mmf${i + 1}`, value: 1.0, status: 'mm_full' })),
+  // ── MM — 2 accumulating ───────────────────────────────────────────────────
+  { id: 'mma1', value: 0.7132, status: 'mm_acc' },
+  { id: 'mma2', value: 0.9233, status: 'mm_acc' },
+  // ── MM — 11 fractional ───────────────────────────────────────────────────
+  { id: 'mmfr1',  value: 0.0025, status: 'mm_frac' },
+  { id: 'mmfr2',  value: 0.0041, status: 'mm_frac' },
+  { id: 'mmfr3',  value: 0.0030, status: 'mm_frac' },
+  { id: 'mmfr4',  value: 0.0012, status: 'mm_frac' },
+  { id: 'mmfr5',  value: 0.0028, status: 'mm_frac' },
+  { id: 'mmfr6',  value: 0.0024, status: 'mm_frac' },
+  { id: 'mmfr7',  value: 0.0034, status: 'mm_frac' },
+  { id: 'mmfr8',  value: 0.0016, status: 'mm_frac' },
+  { id: 'mmfr9',  value: 0.0029, status: 'mm_frac' },
+  { id: 'mmfr10', value: 0.0038, status: 'mm_frac' },
+  { id: 'mmfr11', value: 0.0011, status: 'mm_frac' },
+  // ── NP — 5 full credits (NainarPalayam) ──────────────────────────────────
+  ...Array.from({ length: 5 }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
+  // ── NP — 1 accumulating (450 cow·days) ───────────────────────────────────
+  { id: 'npa1', value: parseFloat((450 / (365 / 0.6)).toFixed(4)), status: 'np_acc' },
 ];
 
 // Carbon credit conversion: 1 cow × 365 days = 0.6 tCO₂e  →  1 tCO₂e = 365/0.6 ≈ 608.33 cow·days
@@ -369,11 +302,7 @@ const MM_SOCIETIES = [
   'MCC-512, Rasipuram',     // May 2026
   'MCC-520, Thuraiyur',     // May 2026
 ];
-const NP_SOCIETIES = [
-  'NP-007 - Nagaur Dairy Federation',
-  'NP-015 - Jodhpur Cooperative',
-  'NP-022 - Bikaner Milk Society',
-];
+const NP_SOCIETIES = ['NainarPalayam Farm'];
 const MM_LOCATIONS = [
   'Kattuputhur, TN',
   'Attur, TN',
@@ -383,7 +312,7 @@ const MM_LOCATIONS = [
   'Rasipuram, TN',
   'Thuraiyur, TN',
 ];
-const NP_LOCATIONS = ['Nagaur, Rajasthan, India', 'Jodhpur, Rajasthan, India', 'Bikaner, Rajasthan, India'];
+const NP_LOCATIONS = ['NainarPalayam, TN'];
 
 const PLACE_COORDS: Record<string, [number, number]> = {
   'Kattuputhur, TN':          [11.10, 77.90],
@@ -408,26 +337,39 @@ function hashNum(s: string, mod: number) {
 function deriveOffsetDetails(cube: Cube) {
   const isMM = cube.status.startsWith('mm');
   const h = hashNum(cube.id, 1000);
-  const societies = isMM ? MM_SOCIETIES : NP_SOCIETIES;
-  const locations  = isMM ? MM_LOCATIONS  : NP_LOCATIONS;
   const isFull = cube.value === 1.0;
   const isAcc  = cube.value >= 0.5 && cube.value < 1.0;
-  const idx      = h % societies.length;
-  const location = locations[idx];
+
+  // ── Society / location resolution ────────────────────────────────────────
+  // NP: always NainarPalayam
+  // MM full: always Kattuputhur (index 0, joined Oct 2025)
+  // MM non-full: cycle through the 6 later-joining MCCs in join-date order
+  //   (Attur Dec 2025 first, then the 5 May 2026 MCCs)
+  let societyGlobalIdx: number;
+  if (!isMM) {
+    societyGlobalIdx = 0; // NP_SOCIETIES only has NainarPalayam
+  } else if (isFull) {
+    societyGlobalIdx = 0; // Kattuputhur
+  } else {
+    societyGlobalIdx = 1 + (h % 6); // Attur (1) → Thuraiyur (6)
+  }
+
+  const society  = isMM ? MM_SOCIETIES[societyGlobalIdx] : NP_SOCIETIES[0];
+  const location = isMM ? MM_LOCATIONS[societyGlobalIdx] : NP_LOCATIONS[0];
   const coords   = PLACE_COORDS[location] ?? [20.5937, 78.9629];
+  const joinDate = isMM ? MM_JOIN_DATES[societyGlobalIdx] : { month: 'Jan', year: '2025' };
+
   return {
     id: `#${3400 + h}`,
-    project: isMM ? 'Milky Mist Low Carbon Milk Program' : 'NP Dairy Low-Emission Program',
-    society: societies[idx],
+    project: isMM ? 'Milky Mist Low Carbon Milk Program' : 'NainarPalayam Low Carbon Dairy',
+    society,
     location,
     lat: coords[0],
     lon: coords[1],
-    generatedOn: isMM
-      ? `${(h % 28) + 1} ${MM_JOIN_DATES[idx].month} ${MM_JOIN_DATES[idx].year}`
-      : `${(h % 28) + 1} ${['Jan','Feb','Mar','Apr','May','Jun'][h % 6]} 2025`,
-    ch4owUsed: isFull ? 245 : isAcc ? Math.round(cube.value * 245) : Math.round(cube.value * 245),
-    animals: isFull ? 112 : isAcc ? Math.round(cube.value * 112) : Math.max(1, Math.round(cube.value * 112)),
-    farmers: isFull ? 38 : isAcc ? Math.round(cube.value * 38) : Math.max(1, Math.round(cube.value * 38)),
+    generatedOn: `${(h % 28) + 1} ${joinDate.month} ${joinDate.year}`,
+    ch4owUsed: isFull ? 245 : Math.round(cube.value * 245),
+    animals:   isFull ? 112 : Math.max(1, Math.round(cube.value * 112)),
+    farmers:   isFull ? 38  : Math.max(1, Math.round(cube.value * 38)),
     reduction: cube.value,
     status: isFull ? 'Available for Retirement' : isAcc ? 'Accumulating' : 'Fractional — In Progress',
     isMM,
@@ -508,14 +450,22 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
 
         {isFull && (
           <div
-            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center z-20 shadow-sm"
+            className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center z-20 shadow-sm"
             style={{ backgroundColor: '#ffffff', color: cfg.bg }}
           >
-            <CheckCircle2 size={13} strokeWidth={2.5} />
+            <CheckCircle2 size={9} strokeWidth={2.5} />
           </div>
         )}
 
         <CowIcon className="w-9 h-9 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
+
+        {/* Project badge — bottom-left */}
+        <span
+          className="absolute bottom-1 left-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded z-20"
+          style={{ color: cfg.color }}
+        >
+          {cube.status.startsWith('mm') ? 'MM' : 'NP'}
+        </span>
       </button>
     </div>
   );
