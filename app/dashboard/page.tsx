@@ -448,16 +448,7 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           </div>
         )}
 
-        {isFull && (
-          <div
-            className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center z-20 shadow-sm"
-            style={{ backgroundColor: '#ffffff', color: cfg.bg }}
-          >
-            <CheckCircle2 size={9} strokeWidth={2.5} />
-          </div>
-        )}
-
-        <CowIcon className="w-9 h-9 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
+        <CowIcon className="cow-icon w-9 h-9 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
 
         {/* Project badge — bottom-left */}
         <span
@@ -728,7 +719,7 @@ export default function DashboardPage() {
 
         {/* Offset Matrix Grid */}
         <div className="bg-white rounded-xl border border-gray-100 p-2 sm:p-4" style={{ overflow: 'visible' }}>
-          <div className="offset-matrix-grid" style={{ overflow: 'visible' }}>
+          <div className={`offset-matrix-grid${selectedCubeId ? ' panel-open' : ''}`} style={{ overflow: 'visible' }}>
             {GRID.map((cube) => (
               <OffsetCube
                 key={cube.id}

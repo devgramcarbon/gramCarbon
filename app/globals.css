@@ -123,6 +123,18 @@ body {
   }
 }
 
+@media (min-width: 1024px) {
+  .offset-matrix-grid.panel-open {
+    gap: 3px;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+  }
+
+  .offset-matrix-grid.panel-open .cow-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
 /* ──────────────────────────────────────────────
    Dark Mode — permanent forced dark theme
    ────────────────────────────────────────────── */
