@@ -138,7 +138,7 @@ function OffsetTile({
         {value} tCO₂e
       </div>
       <div
-        className="relative flex items-center justify-center rounded-xl p-4 border cursor-default overflow-hidden"
+        className="relative flex items-center justify-center rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-default overflow-hidden"
         style={{ backgroundColor: bg, borderColor: border }}
       >
         {/* Water fill */}
@@ -171,12 +171,12 @@ function OffsetTile({
           )}
         </div>
         {!loaded ? (
-          <div className="w-16 h-16 rounded-xl animate-pulse bg-white/30 relative z-10" />
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl animate-pulse bg-white/30 relative z-10" />
         ) : (
           <img
             src="/cownew.png"
             alt="cow"
-            className="w-16 h-16 object-contain relative z-10"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-contain relative z-10"
             style={iconFilter ? { filter: iconFilter } : undefined}
           />
         )}
@@ -448,11 +448,11 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           </div>
         )}
 
-        <CowIcon className="cow-icon w-9 h-9 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
+        <CowIcon className="cow-icon w-16 h-16 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
 
         {/* Project badge — bottom-left */}
         <span
-          className="absolute bottom-1 left-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded z-20"
+          className="absolute bottom-1 left-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded z-20 hidden sm:inline"
           style={{ color: cfg.color }}
         >
           {cube.status.startsWith('mm') ? 'MM' : 'NP'}
@@ -676,7 +676,7 @@ export default function DashboardPage() {
           <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wider">
             Today's Fractional Flow
           </p>
-          <div className="flex items-center gap-2 mb-3 flex-wrap" style={{ overflow: 'visible' }}>
+          <div className="grid grid-cols-4 gap-1.5 mb-3 sm:flex sm:items-center sm:gap-2 sm:flex-wrap" style={{ overflow: 'visible' }}>
             {Array.from({ length: Math.floor(TODAY_TOTAL_FLOW) }).map((_, i) => (
               <OffsetTile
                 key={i}
