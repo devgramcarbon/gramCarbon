@@ -137,50 +137,50 @@ function OffsetTile({
       >
         {value} tCO₂e
       </div>
-      <div
-        className="relative flex items-center justify-center rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-default overflow-hidden"
-        style={{ backgroundColor: bg, borderColor: border }}
-      >
-        {/* Water fill */}
+      {!loaded ? (
+        <div className="rounded-lg sm:rounded-xl animate-pulse bg-gray-200 w-20 h-20 sm:w-24 sm:h-24" />
+      ) : (
         <div
-          className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
-          style={{ height: `${progress * 100}%`, backgroundColor: progress >= 1 ? fill : undefined }}
+          className="relative flex items-center justify-center rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-default overflow-hidden"
+          style={{ backgroundColor: bg, borderColor: border }}
         >
-          {progress < 1 && (
-            <>
-              <div className="wave-tile" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 16, marginTop: -8 }}>
-                <svg
-                  viewBox="0 0 200 16"
-                  preserveAspectRatio="none"
-                  className="wave-svg"
-                  style={{
-                    position: 'absolute',
-                    width: '200%',
-                    height: '100%',
-                    animation: 'wave-flow 1.8s linear infinite',
-                  }}
-                >
-                  <path
-                    d="M0,8 C20,0 30,16 50,8 C70,0 80,16 100,8 C120,0 130,16 150,8 C170,0 180,16 200,8 L200,16 L0,16 Z"
-                    fill={fill}
-                  />
-                </svg>
-              </div>
-              <div style={{ position: 'absolute', top: 8, left: 0, right: 0, bottom: 0, backgroundColor: fill }} />
-            </>
-          )}
-        </div>
-        {!loaded ? (
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl animate-pulse bg-white/30 relative z-10" />
-        ) : (
+          {/* Water fill */}
+          <div
+            className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out"
+            style={{ height: `${progress * 100}%`, backgroundColor: progress >= 1 ? fill : undefined }}
+          >
+            {progress < 1 && (
+              <>
+                <div className="wave-tile" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 16, marginTop: -8 }}>
+                  <svg
+                    viewBox="0 0 200 16"
+                    preserveAspectRatio="none"
+                    className="wave-svg"
+                    style={{
+                      position: 'absolute',
+                      width: '200%',
+                      height: '100%',
+                      animation: 'wave-flow 1.8s linear infinite',
+                    }}
+                  >
+                    <path
+                      d="M0,8 C20,0 30,16 50,8 C70,0 80,16 100,8 C120,0 130,16 150,8 C170,0 180,16 200,8 L200,16 L0,16 Z"
+                      fill={fill}
+                    />
+                  </svg>
+                </div>
+                <div style={{ position: 'absolute', top: 8, left: 0, right: 0, bottom: 0, backgroundColor: fill }} />
+              </>
+            )}
+          </div>
           <img
             src="/cownew.png"
             alt="cow"
             className="w-14 h-14 sm:w-16 sm:h-16 object-contain relative z-10"
             style={iconFilter ? { filter: iconFilter } : undefined}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -407,6 +407,13 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
   const isFull = cube.value >= 1.0;
   const emptyBg   = cfg.emptyBg   ?? cfg.bg;
   const fillColor = cfg.fillColor ?? cfg.bg;
+  const loaded = useCowLoaded();
+
+  if (!loaded) {
+    return (
+      <div className="rounded-lg aspect-square animate-pulse bg-gray-200 sm:hidden" />
+    );
+  }
 
   return (
     <div className="group relative" style={{ overflow: 'visible' }}>
@@ -448,7 +455,7 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           </div>
         )}
 
-        <CowIcon className="cow-icon w-16 h-16 sm:w-14 sm:h-14 relative z-10" color={cfg.color} />
+        <CowIcon className="cow-icon w-14 h-14 relative z-10" color={cfg.color} />
 
         {/* Project badge — bottom-left */}
         <span
