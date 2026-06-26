@@ -456,7 +456,7 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
 
   if (!loaded) {
     return (
-      <div className="rounded-lg aspect-square animate-pulse bg-gray-200 sm:hidden" />
+      <div className="rounded-lg aspect-square animate-pulse bg-gray-200" />
     );
   }
 
@@ -522,7 +522,7 @@ function DetailRow({
           {onMapClick && (
             <button
               onClick={onMapClick}
-              className="ml-2 text-teal-600 hover:underline text-[10px]"
+              className="hidden sm:inline ml-2 text-teal-600 hover:underline text-[10px]"
             >
               View on Map
             </button>
@@ -764,166 +764,287 @@ function Sk({ className, style }: { className: string; style?: React.CSSProperti
 
 function DashboardSkeleton() {
   return (
-    <div className="flex flex-col lg:flex-row gap-5 items-start">
-      <div className="flex-1 min-w-0 space-y-4">
+    <>
+      {/* ── Mobile skeleton (< 640 px) ───────────────────────────────────────── */}
+      <div className="sm:hidden flex flex-col gap-4">
 
-        {/* Header row */}
-        <div className="space-y-1.5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Sk className="h-7 w-36 rounded-lg" />
-              <Sk className="w-4 h-4 rounded" />
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <Sk className="w-3 h-3 rounded-sm" />
-                  <Sk className="h-2.5 w-16 rounded" />
-                </div>
-              ))}
-            </div>
+        {/* Header */}
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Sk className="h-7 w-32 rounded-md" />
+            <Sk className="w-4 h-4 rounded" />
           </div>
-          <Sk className="h-2.5 w-[520px] max-w-full rounded" />
+          <div className="grid grid-cols-3 gap-x-3 gap-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Sk className="w-3 h-3 rounded-sm flex-shrink-0" />
+                <Sk className="h-2.5 w-14 rounded" />
+              </div>
+            ))}
+          </div>
+          <Sk className="h-2.5 w-52 rounded" />
         </div>
 
         {/* Today's Fractional Flow */}
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <div className="flex items-baseline justify-between mb-3">
-            <Sk className="h-3 w-44 rounded" />
-            <Sk className="h-6 w-28 rounded" />
+        <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Sk className="h-3 w-40 rounded" />
+            <div className="flex items-baseline gap-1.5">
+              <Sk className="h-5 w-14 rounded" />
+              <Sk className="h-2.5 w-16 rounded" />
+            </div>
           </div>
-          <div className="grid grid-cols-5 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:flex-wrap">
+          {/* 5-col × 2-row tile grid */}
+          <div className="grid grid-cols-5 gap-1.5">
             {Array.from({ length: 10 }).map((_, i) => (
-              <Sk key={i} className="w-12 h-12 rounded-lg" />
+              <Sk key={i} className="aspect-square w-full rounded-lg" />
             ))}
           </div>
         </div>
 
-        {/* Offset Matrix Grid */}
-        <div className="bg-white rounded-xl border border-gray-100 p-2 sm:p-4">
+        {/* Offset Matrix Grid — 8 cols on mobile */}
+        <div className="bg-white rounded-xl border border-gray-100 p-2">
           <div className="offset-matrix-grid">
             {Array.from({ length: 84 }).map((_, i) => (
-              <Sk key={i} className="aspect-square rounded-lg w-full" />
+              <Sk key={i} className="aspect-square w-full rounded" />
             ))}
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Stats — stacked (grid-cols-1 on mobile) */}
+        <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <Sk className="w-9 h-9 rounded-lg flex-shrink-0" />
-              <div className="min-w-0 space-y-2">
-                <Sk className="h-6 w-20 rounded" />
-                <Sk className="h-2.5 w-36 rounded" />
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <Sk className="h-6 w-24 rounded" />
+                <Sk className="h-2.5 w-40 rounded" />
               </div>
             </div>
           ))}
         </div>
 
-        {/* Bottom Charts Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          {/* Left column: By Project + By Societies */}
-          <div className="space-y-4">
-
-            {/* By Project */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <Sk className="h-3 w-20 rounded mb-3" />
-              <div className="flex items-center justify-center mb-2">
-                <Sk className="w-28 h-28 rounded-full" />
+        {/* By Project */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <Sk className="h-3 w-16 rounded mb-3" />
+          <div className="flex justify-center mb-3">
+            <Sk className="w-28 h-28 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sk className="w-2 h-2 rounded-full flex-shrink-0" />
+                  <Sk className="h-2.5 w-28 rounded" />
+                </div>
+                <Sk className="h-2.5 w-16 rounded" />
               </div>
-              <div className="mt-2 space-y-1.5">
-                {Array.from({ length: 2 }).map((_, i) => (
+            ))}
+          </div>
+        </div>
+
+        {/* By Societies */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <Sk className="h-3 w-20 rounded mb-3" />
+          <div className="space-y-3">
+            {[76, 53, 51, 30, 11, 11, 8, 4].map((pct, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Sk className="h-2.5 w-20 flex-shrink-0 rounded" />
+                <Sk className="h-3.5 rounded" style={{ width: `${pct}%` }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* By Location */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Sk className="h-3 w-32 rounded" />
+            <Sk className="w-3.5 h-3.5 rounded" />
+          </div>
+          <Sk className="h-52 w-full rounded-lg mb-3" />
+          <div className="space-y-1.5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sk className="w-1.5 h-1.5 rounded-full flex-shrink-0" />
+                  <Sk className="h-2.5 w-28 rounded" />
+                </div>
+                <Sk className="h-2.5 w-14 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Monthly Status */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <Sk className="h-3 w-28 rounded mb-3" />
+          <div className="grid grid-cols-4 gap-2">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <Sk key={i} className="w-full aspect-square rounded-lg" />
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <Sk className="w-2 h-2 rounded-sm" />
+                <Sk className="h-2 w-12 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── Desktop skeleton (≥ 640 px) — unchanged ─────────────────────────── */}
+      <div className="hidden sm:flex flex-col lg:flex-row gap-5 items-start">
+        <div className="flex-1 min-w-0 space-y-4">
+
+          {/* Header row */}
+          <div className="space-y-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Sk className="h-6 w-36 rounded" />
+                <Sk className="w-4 h-4 rounded" />
+              </div>
+              <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <Sk className="w-3 h-3 rounded-sm flex-shrink-0" />
+                    <Sk className="h-2.5 w-16 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Sk className="h-2.5 w-[520px] max-w-full rounded" />
+          </div>
+
+          {/* Today's Fractional Flow */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <Sk className="h-3 w-44 rounded" />
+              <Sk className="h-6 w-28 rounded" />
+            </div>
+            <div className="grid grid-cols-5 gap-1.5 mb-3 sm:flex sm:items-center sm:gap-2 sm:flex-wrap">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Sk key={i} className="w-12 h-12 rounded-lg" />
+              ))}
+            </div>
+          </div>
+
+          {/* Offset Matrix Grid */}
+          <div className="bg-white rounded-xl border border-gray-100 p-2 sm:p-4">
+            <div className="offset-matrix-grid">
+              {Array.from({ length: 84 }).map((_, i) => (
+                <Sk key={i} className="aspect-square rounded-lg w-full" />
+              ))}
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
+                <Sk className="w-9 h-9 rounded-lg flex-shrink-0" />
+                <div className="min-w-0 space-y-2">
+                  <Sk className="h-6 w-20 rounded" />
+                  <Sk className="h-2.5 w-36 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Charts Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <Sk className="h-3 w-20 rounded mb-3" />
+                <div className="flex items-center justify-center mb-2">
+                  <Sk className="w-28 h-28 rounded-full" />
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sk className="w-2 h-2 rounded-full" />
+                        <Sk className="h-2.5 w-24 rounded" />
+                      </div>
+                      <Sk className="h-2.5 w-14 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <Sk className="h-3 w-20 rounded mb-3" />
+                <div className="space-y-3">
+                  {[76, 53, 51, 11, 11, 8, 7, 4].map((pct, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Sk className="h-2.5 w-[76px] flex-shrink-0 rounded" />
+                      <Sk className="h-3.5 rounded" style={{ width: `${pct}%` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <Sk className="h-3 w-32 rounded" />
+                <Sk className="w-3.5 h-3.5 rounded" />
+              </div>
+              <Sk className="h-52 w-full rounded-lg mb-2" />
+              <div className="space-y-1">
+                {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Sk className="w-2 h-2 rounded-full" />
-                      <Sk className="h-2.5 w-24 rounded" />
+                      <Sk className="w-1.5 h-1.5 rounded-full" />
+                      <Sk className="h-2.5 w-28 rounded" />
                     </div>
-                    <Sk className="h-2.5 w-14 rounded" />
+                    <Sk className="h-2.5 w-12 rounded" />
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* By Societies */}
             <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <Sk className="h-3 w-20 rounded mb-3" />
-              <div className="space-y-3">
-                {[76, 53, 51, 11, 11, 8, 7, 4].map((pct, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Sk className="h-2.5 w-[76px] flex-shrink-0 rounded" />
-                    <Sk className="h-3.5 rounded" style={{ width: `${pct}%` }} />
+              <Sk className="h-3 w-28 rounded mb-3" />
+              <div className="grid grid-cols-4 gap-2">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <Sk key={i} className="w-full aspect-square rounded-lg" />
+                ))}
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <Sk className="w-2 h-2 rounded-sm" />
+                    <Sk className="h-2 w-10 rounded" />
                   </div>
                 ))}
               </div>
             </div>
 
           </div>
-
-          {/* By Location */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Sk className="h-3 w-32 rounded" />
-              <Sk className="w-3.5 h-3.5 rounded" />
-            </div>
-            <Sk className="h-52 w-full rounded-lg mb-2" />
-            <div className="space-y-1">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sk className="w-1.5 h-1.5 rounded-full" />
-                    <Sk className="h-2.5 w-28 rounded" />
-                  </div>
-                  <Sk className="h-2.5 w-12 rounded" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Monthly Status */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <Sk className="h-3 w-28 rounded mb-3" />
-            <div className="grid grid-cols-4 gap-2">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Sk key={i} className="w-full aspect-square rounded-lg" />
-              ))}
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <Sk className="w-2 h-2 rounded-sm" />
-                  <Sk className="h-2 w-10 rounded" />
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [loaded, setLoaded] = useState(false);
+  const cowLoaded = useCowLoaded();
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isPanelClosing, setIsPanelClosing] = useState(false);
   const [mapEnlarged, setMapEnlarged] = useState<{ lat?: number; lon?: number } | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), 1400);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
     document.body.style.overflow = mapEnlarged ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mapEnlarged]);
 
-  if (!loaded) return <DashboardSkeleton />;
+  if (!cowLoaded) return <DashboardSkeleton />;
 
   function closePanel() {
     setIsPanelClosing(true);
@@ -1109,7 +1230,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-700">By Location (All 8)</p>
-              <button onClick={() => setMapEnlarged({})} className="text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
+              <button onClick={() => setMapEnlarged({})} className="hidden sm:block text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
                 <Maximize2 size={13} />
               </button>
             </div>
@@ -1304,7 +1425,7 @@ export default function DashboardPage() {
 
       {/* ── Map Enlarged Modal ─────────────────────────────────────────────── */}
       {mapEnlarged && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(null)}>
+        <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <p className="text-sm font-bold text-gray-900">{mapEnlarged?.lat !== undefined ? 'Society Location' : 'By Location (All 8)'}</p>
