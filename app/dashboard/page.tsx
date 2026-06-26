@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   AreaChart, Area, Tooltip as RechartTooltip,
+  BarChart, Bar, XAxis, YAxis,
 } from 'recharts';
 import {
   Info, Grid3X3, List, ChevronRight, X, CheckCircle2,
@@ -48,6 +49,23 @@ const TODAY_FLOW_TABLE = [
   { mmNo: 520, name: 'Thuraiyur',     flow: 4.42, pct: 48.10 },
 ];
 const TODAY_TOTAL_FLOW = TODAY_FLOW_TABLE.reduce((s, r) => s + r.flow, 0);
+
+// Tile-to-society assignment for Today's Fractional Flow:
+// Attur (1.24), Kattuputhur (1.00), Kallakurichi (0.89), Kabilarmalai (0.63), Rasipuram (0.62) → 1 tile each
+// Thuraiyur (4.42) → 4 tiles (repeating, largest contributor)
+// Namakkal (0.36) → fractional filling tile
+const TODAY_FLOW_TILES: { society: string; flow: number; isFull: boolean }[] = [
+  { society: 'Attur',        flow: 1.24, isFull: true },
+  { society: 'Kattuputhur',  flow: 1.00, isFull: true },
+  { society: 'Kallakurichi', flow: 0.89, isFull: true },
+  { society: 'Kabilarmalai', flow: 0.63, isFull: true },
+  { society: 'Rasipuram',    flow: 0.62, isFull: true },
+  { society: 'Thuraiyur',    flow: 4.42, isFull: true },
+  { society: 'Thuraiyur',    flow: 4.42, isFull: true },
+  { society: 'Thuraiyur',    flow: 4.42, isFull: true },
+  { society: 'Thuraiyur',    flow: 4.42, isFull: true },
+  { society: 'Namakkal',     flow: 0.36, isFull: false },
+];
 
 // ─── Cow image preloader (singleton) ─────────────────────────────────────────
 const _cow = { loaded: false, cbs: new Set<() => void>() };
@@ -117,6 +135,8 @@ function OffsetTile({
   progress = 1,
   index,
   small = false,
+  societyLabel,
+  societyFlow,
 }: {
   value: string;
   bg: string;
@@ -128,16 +148,23 @@ function OffsetTile({
   progress?: number;
   index?: number;
   small?: boolean;
+  societyLabel?: string;
+  societyFlow?: number;
 }) {
   const loaded = useCowLoaded();
   const fill = fillColor ?? bg;
   return (
     <div className="relative group flex flex-col items-center" style={{ overflow: 'visible' }}>
       <div
-        className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"
+        className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 flex flex-col items-center"
         style={{ backgroundColor: tooltipBg, color: tooltipColor }}
       >
-        {value} tCO₂e
+        {societyLabel && (
+          <span className="text-[10px] font-bold whitespace-nowrap leading-tight">{societyLabel}</span>
+        )}
+        <span className="text-[10px] font-semibold whitespace-nowrap leading-tight">
+          {societyFlow !== undefined ? `${societyFlow.toFixed(2)} tCO₂e` : `${value} tCO₂e`}
+        </span>
       </div>
       {!loaded ? (
         <div className={`rounded-lg animate-pulse bg-gray-200 ${small ? 'w-12 h-12' : 'w-20 h-20 sm:w-24 sm:h-24'}`} />
@@ -261,6 +288,17 @@ const BY_PROJECT = [
   { name: 'NainarPalayam',   value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.6 / 365).toFixed(4)), color: '#9A60A8' },
 ];
 
+const BY_SOCIETIES = [
+  { name: 'Kattuputhur',   value: parseFloat((158672                     * 0.6 / 365).toFixed(4)), color: '#0d9488' },
+  { name: 'Thuraiyur',     value: parseFloat((83359                      * 0.6 / 365).toFixed(4)), color: '#5cb8c4' },
+  { name: 'Attur',         value: parseFloat((80782                      * 0.6 / 365).toFixed(4)), color: '#7c3aed' },
+  { name: 'NainarPalayam', value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.6 / 365).toFixed(4)), color: '#9A60A8' },
+  { name: 'Kallakurichi',  value: parseFloat((16957                      * 0.6 / 365).toFixed(4)), color: '#c9870e' },
+  { name: 'Kabilarmalai',  value: parseFloat((11904                      * 0.6 / 365).toFixed(4)), color: '#8b5cf6' },
+  { name: 'Rasipuram',     value: parseFloat((11780                      * 0.6 / 365).toFixed(4)), color: '#64748b' },
+  { name: 'Namakkal',      value: parseFloat((6882                       * 0.6 / 365).toFixed(4)), color: '#ef4444' },
+];
+
 // All 7 Milky Mist MCCs + NainarPalayam — cow·days × 0.6 / 365 = tCO₂e
 const TOP_LOCATIONS = [
   { name: 'Kattuputhur, TN',   value: parseFloat((158672                         * 0.6 / 365).toFixed(4)), lat: 11.10, lon: 77.90 },
@@ -274,11 +312,6 @@ const TOP_LOCATIONS = [
 ];
 
 // SVG path extents (from in.svg): M-coord range x 173.4–840.5, y 173.8–941.1 within 1000×1000 viewBox
-const INDIA_BOUNDS = {
-  lonMin: 68, lonMax: 97.5, latMin: 8, latMax: 37.6,
-  svgXMin: 173.4, svgXMax: 840.5,
-  svgYMin: 173.8, svgYMax: 941.1,
-};
 
 // Monthly daily-average tCO₂e (animals × 0.6 / 365)
 const ACTIVITY_DATA = [
@@ -467,7 +500,7 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           </div>
         )}
 
-        <CowIcon className="cow-icon w-9 h-9 relative z-10" color={cfg.color} />
+        <CowIcon className="cow-icon w-7 h-7 relative z-10" color={cfg.color} />
 
       </button>
     </div>
@@ -501,6 +534,126 @@ function DetailRow({
 }
 
 
+// ─── Enlarged Location Map (Leaflet, all 8 pins) ─────────────────────────────
+function InlineLocationMap() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    let cancelled = false;
+    let map: import('leaflet').Map | null = null;
+
+    import('leaflet').then((L) => {
+      if (cancelled || !containerRef.current) return;
+      if ((containerRef.current as any)._leaflet_id) return;
+
+      map = L.map(containerRef.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd', maxZoom: 20,
+      }).addTo(map);
+
+      const markers: import('leaflet').Marker[] = [];
+      TOP_LOCATIONS.forEach((loc) => {
+        const icon = L.divIcon({
+          html: `<div style="width:10px;height:10px;background:#ef4444;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+          iconSize: [10, 10], iconAnchor: [5, 5], className: '',
+        });
+        const marker = L.marker([loc.lat, loc.lon], { icon })
+          .addTo(map!)
+          .bindTooltip(`<b style="font-size:10px">${loc.name}</b>`, { permanent: false, direction: 'top', offset: [0, -6] });
+        markers.push(marker);
+      });
+
+      if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds(), { padding: [24, 24] });
+        map.zoomOut(2.5);
+      }
+    });
+
+    return () => { cancelled = true; map?.remove(); };
+  }, []);
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+}
+
+function EnlargedLocationMap({ highlight }: { highlight?: { lat: number; lon: number } }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    let cancelled = false;
+    let map: import('leaflet').Map | null = null;
+
+    import('leaflet').then((L) => {
+      if (cancelled || !containerRef.current) return;
+      if ((containerRef.current as any)._leaflet_id) return;
+
+      map = L.map(containerRef.current, { zoomControl: true });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      const locations = highlight
+        ? TOP_LOCATIONS.filter((loc) => Math.abs(loc.lat - highlight.lat) < 0.01 && Math.abs(loc.lon - highlight.lon) < 0.01)
+        : TOP_LOCATIONS;
+
+      const markers: import('leaflet').Marker[] = [];
+
+      locations.forEach((loc) => {
+        const icon = L.divIcon({
+          html: highlight
+            ? `<div style="width:18px;height:18px;background:#0d9488;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(13,148,136,0.5)"></div>`
+            : `<div style="width:14px;height:14px;background:#ef4444;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+          iconSize: highlight ? [18, 18] : [14, 14],
+          iconAnchor: highlight ? [9, 9] : [7, 7],
+          className: '',
+        });
+        const marker = L.marker([loc.lat, loc.lon], { icon })
+          .addTo(map!)
+          .bindPopup(
+            `<div style="font-size:12px;line-height:1.5"><b>${loc.name}</b><br/><span style="color:#0d9488;font-family:monospace">${loc.value.toFixed(4)} tCO₂e</span></div>`,
+            { closeButton: false, offset: [0, -4] }
+          );
+        markers.push(marker);
+      });
+
+      if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds(), { padding: [48, 48] });
+        map.zoomOut(highlight ? 13 : 2);
+        markers[0].openPopup();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      map?.remove();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+}
+
 // ─── Map Modal ────────────────────────────────────────────────────────────────
 function MapModal({ name, lat, lon, onClose }: { name: string; lat: number; lon: number; onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -528,7 +681,7 @@ function MapModal({ name, lat, lon, onClose }: { name: string; lat: number; lon:
       // Guard against StrictMode double-invoke
       if ((containerRef.current as any)._leaflet_id) return;
 
-      map = L.map(containerRef.current, { center: [lat, lon], zoom: 14, zoomControl: true });
+      map = L.map(containerRef.current, { center: [lat, lon], zoom: 10, zoomControl: true });
 
       // CartoDB Positron — clean, light, modern tiles
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -590,7 +743,7 @@ function MapModal({ name, lat, lon, onClose }: { name: string; lat: number; lon:
             {lat.toFixed(4)}° N &nbsp;{lon.toFixed(4)}° E
           </span>
           <a
-            href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`}
+            href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=2/${lat}/${lon}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] text-teal-600 hover:underline"
@@ -603,46 +756,174 @@ function MapModal({ name, lat, lon, onClose }: { name: string; lat: number; lon:
   );
 }
 
-function IndiaMapSVG() {
+
+// ─── Skeleton helpers ─────────────────────────────────────────────────────────
+function Sk({ className, style }: { className: string; style?: React.CSSProperties }) {
+  return <div className={`animate-pulse bg-gray-200 rounded ${className}`} style={style} />;
+}
+
+function DashboardSkeleton() {
   return (
-    <div className="relative w-full h-full">
-      <img src="/in.svg" className="w-full h-full object-fill" alt="India" />
-      {TOP_LOCATIONS.map((loc, i) => {
-        const svgX = INDIA_BOUNDS.svgXMin + ((loc.lon - INDIA_BOUNDS.lonMin) / (INDIA_BOUNDS.lonMax - INDIA_BOUNDS.lonMin)) * (INDIA_BOUNDS.svgXMax - INDIA_BOUNDS.svgXMin);
-        const svgY = INDIA_BOUNDS.svgYMax - ((loc.lat - INDIA_BOUNDS.latMin) / (INDIA_BOUNDS.latMax - INDIA_BOUNDS.latMin)) * (INDIA_BOUNDS.svgYMax - INDIA_BOUNDS.svgYMin);
-        const left = `${(svgX / 1000) * 100}%`;
-        const top  = `${(svgY / 1000) * 100}%`;
-        return (
-          <div
-            key={i}
-            className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-default"
-            style={{ left, top }}
-          >
-            <span className="absolute inline-flex h-3.5 w-3.5 -translate-x-[2px] -translate-y-[2px]">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-50" />
-            </span>
-            <div className="relative w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-md" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 pointer-events-none">
-              <div className="bg-gray-900 text-white rounded-lg px-2 py-1.5 whitespace-nowrap text-[9px] shadow-xl">
-                <p className="font-semibold leading-tight">{loc.name}</p>
-                <p className="text-teal-300 font-mono leading-tight mt-0.5">{loc.value.toFixed(4)} tCO₂e</p>
-              </div>
-              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+    <div className="flex flex-col lg:flex-row gap-5 items-start">
+      <div className="flex-1 min-w-0 space-y-4">
+
+        {/* Header row */}
+        <div className="space-y-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Sk className="h-7 w-36 rounded-lg" />
+              <Sk className="w-4 h-4 rounded" />
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <Sk className="w-3 h-3 rounded-sm" />
+                  <Sk className="h-2.5 w-16 rounded" />
+                </div>
+              ))}
             </div>
           </div>
-        );
-      })}
+          <Sk className="h-2.5 w-[520px] max-w-full rounded" />
+        </div>
+
+        {/* Today's Fractional Flow */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <Sk className="h-3 w-44 rounded" />
+            <Sk className="h-6 w-28 rounded" />
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:flex-wrap">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Sk key={i} className="w-12 h-12 rounded-lg" />
+            ))}
+          </div>
+        </div>
+
+        {/* Offset Matrix Grid */}
+        <div className="bg-white rounded-xl border border-gray-100 p-2 sm:p-4">
+          <div className="offset-matrix-grid">
+            {Array.from({ length: 84 }).map((_, i) => (
+              <Sk key={i} className="aspect-square rounded-lg w-full" />
+            ))}
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
+              <Sk className="w-9 h-9 rounded-lg flex-shrink-0" />
+              <div className="min-w-0 space-y-2">
+                <Sk className="h-6 w-20 rounded" />
+                <Sk className="h-2.5 w-36 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Charts Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          {/* Left column: By Project + By Societies */}
+          <div className="space-y-4">
+
+            {/* By Project */}
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <Sk className="h-3 w-20 rounded mb-3" />
+              <div className="flex items-center justify-center mb-2">
+                <Sk className="w-28 h-28 rounded-full" />
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sk className="w-2 h-2 rounded-full" />
+                      <Sk className="h-2.5 w-24 rounded" />
+                    </div>
+                    <Sk className="h-2.5 w-14 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* By Societies */}
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <Sk className="h-3 w-20 rounded mb-3" />
+              <div className="space-y-3">
+                {[76, 53, 51, 11, 11, 8, 7, 4].map((pct, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Sk className="h-2.5 w-[76px] flex-shrink-0 rounded" />
+                    <Sk className="h-3.5 rounded" style={{ width: `${pct}%` }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* By Location */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <Sk className="h-3 w-32 rounded" />
+              <Sk className="w-3.5 h-3.5 rounded" />
+            </div>
+            <Sk className="h-52 w-full rounded-lg mb-2" />
+            <div className="space-y-1">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sk className="w-1.5 h-1.5 rounded-full" />
+                    <Sk className="h-2.5 w-28 rounded" />
+                  </div>
+                  <Sk className="h-2.5 w-12 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Monthly Status */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <Sk className="h-3 w-28 rounded mb-3" />
+            <div className="grid grid-cols-4 gap-2">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <Sk key={i} className="w-full aspect-square rounded-lg" />
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <Sk className="w-2 h-2 rounded-sm" />
+                  <Sk className="h-2 w-10 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const [loaded, setLoaded] = useState(false);
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isPanelClosing, setIsPanelClosing] = useState(false);
-  const [mapEnlarged, setMapEnlarged] = useState(false);
-  const [mapInfo, setMapInfo] = useState<{ name: string; lat: number; lon: number } | null>(null);
+  const [mapEnlarged, setMapEnlarged] = useState<{ lat?: number; lon?: number } | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoaded(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = mapEnlarged ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mapEnlarged]);
+
+  if (!loaded) return <DashboardSkeleton />;
 
   function closePanel() {
     setIsPanelClosing(true);
@@ -663,71 +944,66 @@ export default function DashboardPage() {
       <div className="flex-1 min-w-0 space-y-4">
 
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="space-y-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <h1 className="text-xl font-bold text-gray-900">Offset Matrix</h1>
               <button className="text-gray-400 hover:text-gray-600 transition-colors">
                 <Info size={15} />
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">
-             <span className="font-medium text-gray-600">Full</span>, <span className="font-medium text-gray-600">Accumulating</span>, <span className="font-medium text-gray-600">Fractional</span> &nbsp;·&nbsp; 609 cubes combine to form a full offset · Accumulating: &gt; 300 cubes · Fractional: ≤ 300 cubes
-            </p>
+            <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:gap-3">
+              {LEGEND_ORDER.map((s) => <LegendItem key={s} status={s} />)}
+            </div>
           </div>
-
-          {/* Legend + view toggle */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {LEGEND_ORDER.map((s) => <LegendItem key={s} status={s} />)}
-
-          </div>
+          <p className="text-xs text-gray-400">
+            <span className="font-medium text-gray-600">Full</span>, <span className="font-medium text-gray-600">Accumulating</span>, <span className="font-medium text-gray-600">Fractional</span>
+            <span className="hidden sm:inline"> &nbsp;·&nbsp; 609 cubes combine to form a full offset · Accumulating: &gt; 300 cubes · Fractional: ≤ 300 cubes</span>
+            <span className="sm:hidden"> &nbsp;·&nbsp; 609 cubes = 1 tCO₂e offset</span>
+          </p>
         </div>
 
         {/* Today's Fractional Flow */}
         <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wider">
-            Today's Fractional Flow
-          </p>
-          <div className="grid grid-cols-4 gap-1.5 mb-3 sm:flex sm:items-center sm:gap-2 sm:flex-wrap" style={{ overflow: 'visible' }}>
-            {Array.from({ length: Math.floor(TODAY_TOTAL_FLOW) }).map((_, i) => (
-              <OffsetTile
-                key={i}
-                value="1.00"
-                bg="#6d8fa3"
-                fillColor="#4A6274"
-                border="#3a5262"
-                iconFilter="brightness(0) invert(1)"
-                tooltipBg="#4A6274"
-                progress={1}
-                small
-              />
-            ))}
-            <OffsetTile
-              value={(TODAY_TOTAL_FLOW % 1).toFixed(2)}
-              bg={C.mm_frac.bg}
-              fillColor={C.mm_acc.bg}
-              border="#b8d4ec"
-              tooltipBg={C.mm_acc.bg}
-              tooltipColor={C.mm_frac.color}
-              progress={TODAY_TOTAL_FLOW % 1}
-              small
-            />
-          </div>
-          <div className="flex items-baseline gap-1.5 mb-3">
-            <span className="text-2xl font-bold text-teal-600">{TODAY_TOTAL_FLOW.toFixed(4)}</span>
-            <span className="text-xs text-gray-400">tCO₂e today</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${(TODAY_TOTAL_FLOW % 1) * 100}%`, backgroundColor: C.mm_acc.bg }}
-              />
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Today's Fractional Flow</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-bold text-teal-600">{TODAY_TOTAL_FLOW.toFixed(4)}</span>
+              <span className="text-[10px] text-gray-400">tCO₂e today</span>
             </div>
-            <span className="text-gray-400 text-sm">→</span>
-            <div className="text-[10px] text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 leading-snug max-w-[130px] flex-shrink-0">
-              When it reaches 1.0000 tCO₂e it becomes 1 Full Offset
-            </div>
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 mb-3 sm:flex sm:items-center sm:gap-2 sm:flex-wrap" style={{ overflow: 'visible' }}>
+            {TODAY_FLOW_TILES.map((tile, i) =>
+              tile.isFull ? (
+                <OffsetTile
+                  key={i}
+                  value="1.00"
+                  bg="#6d8fa3"
+                  fillColor="#4A6274"
+                  border="#3a5262"
+                  iconFilter="brightness(0) invert(1)"
+                  tooltipBg="#4A6274"
+                  progress={1}
+                  small
+                  societyLabel={tile.society}
+                  societyFlow={tile.flow}
+                />
+              ) : (
+                <OffsetTile
+                  key={i}
+                  value={(TODAY_TOTAL_FLOW % 1).toFixed(2)}
+                  bg={C.mm_frac.bg}
+                  fillColor={C.mm_acc.bg}
+                  border="#b8d4ec"
+                  tooltipBg={C.mm_acc.bg}
+                  tooltipColor={C.mm_frac.color}
+                  progress={TODAY_TOTAL_FLOW % 1}
+                  small
+                  societyLabel={tile.society}
+                  societyFlow={tile.flow}
+                />
+              )
+            )}
           </div>
         </div>
 
@@ -766,49 +1042,79 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom Charts Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-          {/* By Project */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-700 mb-2">By Project</p>
-            <ResponsiveContainer width="100%" height={110}>
-              <PieChart>
-                <Pie
-                  data={BY_PROJECT} cx="50%" cy="50%"
-                  innerRadius={30} outerRadius={50}
-                  dataKey="value" paddingAngle={2}
-                >
-                  {BY_PROJECT.map((e, i) => <Cell key={i} fill={e.color} />)}
-                </Pie>
-                <RechartTooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #f3f4f6' }}
-                  formatter={(v) => [`${v} tCO₂e`, '']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-1 space-y-1">
-              {BY_PROJECT.map((p, i) => (
-                <div key={i} className="flex items-center justify-between text-[10px]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                    <span className="text-gray-600 truncate">{p.name}</span>
+          {/* First column: By Project + By Societies */}
+          <div className="space-y-4">
+
+            {/* By Project */}
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-2">By Project</p>
+              <ResponsiveContainer width="100%" height={110}>
+                <PieChart>
+                  <Pie
+                    data={BY_PROJECT} cx="50%" cy="50%"
+                    innerRadius={30} outerRadius={50}
+                    dataKey="value" paddingAngle={2}
+                  >
+                    {BY_PROJECT.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <RechartTooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #f3f4f6' }}
+                    formatter={(v) => [`${v} tCO₂e`, '']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-1 space-y-1">
+                {BY_PROJECT.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                      <span className="text-gray-600 truncate">{p.name}</span>
+                    </div>
+                    <span className="text-gray-400 font-mono ml-1 flex-shrink-0">{p.value.toFixed(4)}</span>
                   </div>
-                  <span className="text-gray-400 font-mono ml-1 flex-shrink-0">{p.value.toFixed(4)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* By Societies */}
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3">By Society</p>
+              <ResponsiveContainer width="100%" height={192}>
+                <BarChart data={BY_SOCIETIES} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={76}
+                    tick={{ fontSize: 9, fill: '#6b7280' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <RechartTooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #f3f4f6' }}
+                    formatter={(v) => [`${Number(v).toFixed(4)} tCO₂e`, '']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+                    {BY_SOCIETIES.map((s, i) => <Cell key={i} fill={s.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
           </div>
 
           {/* By Location */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-700">By Location (All 8)</p>
-              <button onClick={() => setMapEnlarged(true)} className="text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
+              <button onClick={() => setMapEnlarged({})} className="text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
                 <Maximize2 size={13} />
               </button>
             </div>
-            <div className="h-52 mb-2">
-              <IndiaMapSVG />
+            <div className="h-52 mb-2 rounded-lg overflow-hidden" style={{ isolation: 'isolate' }}>
+              <InlineLocationMap />
             </div>
             <div className="space-y-0.5">
               {TOP_LOCATIONS.map((loc, i) => (
@@ -828,20 +1134,29 @@ export default function DashboardPage() {
             <p className="text-xs font-semibold text-gray-700 mb-3">Monthly Status</p>
             <div className="grid grid-cols-4 gap-2">
               {MONTHLY_STATUS.map((m, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5" title={m.status !== 'pending' ? `${m.tCO2.toFixed(3)} tCO₂e` : 'Pending'}>
+                <div key={i} title={m.status !== 'pending' ? `${m.tCO2.toFixed(3)} tCO₂e` : 'Pending'}>
                   <div
-                    className="w-full aspect-square rounded-lg flex items-center justify-center"
+                    className="w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5"
                     style={{
                       backgroundColor:
                         m.status === 'full'    ? '#ccfbf1' :
                         m.status === 'partial' ? '#fef3c7' : '#f3f4f6',
                     }}
                   >
-                    {m.status === 'full'    && <CheckCircle2 size={13} className="text-teal-600" />}
-                    {m.status === 'partial' && <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />}
-                    {m.status === 'pending' && <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />}
+                    {m.status === 'full'    && <CheckCircle2 size={11} className="text-teal-600" />}
+                    {m.status === 'partial' && <div className="w-2 h-2 rounded-full bg-amber-400" />}
+                    {m.status === 'pending' && <div className="w-2 h-2 rounded-full bg-gray-300" />}
+                    <span
+                      className="text-[8px] font-semibold leading-none"
+                      style={{
+                        color:
+                          m.status === 'full'    ? '#0d9488' :
+                          m.status === 'partial' ? '#b45309' : '#9ca3af',
+                      }}
+                    >
+                      {m.month.split(' ')[0]}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-gray-400 leading-none">{m.month}</span>
                 </div>
               ))}
             </div>
@@ -852,38 +1167,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Today's Activity */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-700 mb-1">Today's Activity</p>
-            <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-2xl font-bold text-gray-900">{TODAY_TOTAL_FLOW.toFixed(4)}</span>
-            </div>
-            <p className="text-[10px] text-gray-400 mb-0.5">TONS CO₂e</p>
-            <p className="text-[10px] text-teal-600 font-semibold mb-2">↑ 12.4% vs yesterday</p>
-            <ResponsiveContainer width="100%" height={55}>
-              <AreaChart data={ACTIVITY_DATA} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.mm_acc.bg} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={C.mm_acc.bg} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="v" stroke={C.mm_acc.bg} strokeWidth={1.5} fill="url(#actGrad)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div className="mt-2 grid grid-cols-3 gap-1 text-center">
-              {[
-                { val: '5,590',   lbl: 'Animals'  },
-                { val: '2,323',   lbl: 'Farmers'  },
-                { val: '34.5K L', lbl: 'Milk/Day' },
-              ].map((s, i) => (
-                <div key={i}>
-                  <p className="text-sm font-bold text-gray-900 leading-none">{s.val}</p>
-                  <p className="text-[9px] text-gray-400 mt-0.5">{s.lbl}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -942,7 +1225,7 @@ export default function DashboardPage() {
               icon={<Building2 size={13} />}
               label="Society / Cooperative"
               value={offsetDetails.society}
-              onMapClick={() => setMapInfo({ name: offsetDetails.society, lat: offsetDetails.lat, lon: offsetDetails.lon })}
+              onMapClick={() => setMapEnlarged({ lat: offsetDetails.lat, lon: offsetDetails.lon })}
             />
             <DetailRow icon={<Calendar size={13} />}   label="Generated On"          value={offsetDetails.generatedOn} />
             <DetailRow icon={<Droplets size={13} />}   label="CH₄OW Used"            value={`${offsetDetails.ch4owUsed} kg`} />
@@ -1019,35 +1302,28 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ── Society Map Modal ──────────────────────────────────────────────── */}
-      {mapInfo && (
-        <MapModal
-          name={mapInfo.name}
-          lat={mapInfo.lat}
-          lon={mapInfo.lon}
-          onClose={() => setMapInfo(null)}
-        />
-      )}
-
       {/* ── Map Enlarged Modal ─────────────────────────────────────────────── */}
       {mapEnlarged && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <p className="text-sm font-bold text-gray-900">By Location (All 8)</p>
-              <button onClick={() => setMapEnlarged(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+              <p className="text-sm font-bold text-gray-900">{mapEnlarged?.lat !== undefined ? 'Society Location' : 'By Location (All 8)'}</p>
+              <button onClick={() => setMapEnlarged(null)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={16} />
               </button>
             </div>
             <div className="flex flex-col sm:flex-row">
-              <div className="flex-1 p-4" style={{ minHeight: 380 }}>
-                <IndiaMapSVG />
+              <div className="flex-1" style={{ minHeight: 560 }}>
+                <EnlargedLocationMap highlight={mapEnlarged?.lat !== undefined ? { lat: mapEnlarged.lat!, lon: mapEnlarged.lon! } : undefined} />
               </div>
               <div className="sm:w-56 border-t sm:border-t-0 sm:border-l border-gray-100 px-5 py-4 flex flex-col justify-center space-y-3">
-                {TOP_LOCATIONS.map((loc, i) => (
+                {(mapEnlarged?.lat !== undefined
+                  ? TOP_LOCATIONS.filter((loc) => Math.abs(loc.lat - mapEnlarged.lat!) < 0.01 && Math.abs(loc.lon - mapEnlarged.lon!) < 0.01)
+                  : TOP_LOCATIONS
+                ).map((loc, i) => (
                   <div key={i} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${mapEnlarged?.lat !== undefined ? 'bg-teal-500' : 'bg-red-400'}`} />
                       <span className="text-xs text-gray-700 truncate">{loc.name}</span>
                     </div>
                     <span className="text-xs text-gray-400 font-mono flex-shrink-0">{loc.value.toFixed(4)}</span>
