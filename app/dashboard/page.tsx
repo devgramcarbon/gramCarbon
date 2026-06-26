@@ -29,11 +29,11 @@ interface Cube {
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 const C: Record<OffsetStatus, { bg: string; color: string; label: string; emptyBg?: string; fillColor?: string }> = {
-  mm_full:  { bg: '#9A60A8', color: '#ffffff', label: 'MM Full Offset'    },
+  mm_full:  { bg: '#4A6274', color: '#ffffff', label: 'MM Full Offset'    },
   mm_acc:   { bg: '#5cb8c4', color: '#ffffff', label: 'MM Accumulating',   emptyBg: '#daf4f8', fillColor: '#5cb8c4' },
   mm_frac:  { bg: '#daf4f8', color: '#1e4a5f', label: 'MM Fractional',     emptyBg: '#daf4f8', fillColor: '#5cb8c4' },
-  np_full:  { bg: '#9A60A8', color: '#ffffff', label: 'NP Full'           },
-  np_acc:   { bg: '#e8c45a', color: '#ffffff', label: 'NP Accumulating',   emptyBg: '#f7f0dc', fillColor: '#e8c45a' },
+  np_full:  { bg: '#C8900A', color: '#ffffff', label: 'NP Full'           },
+  np_acc:   { bg: '#e8c45a', color: '#7a4a00', label: 'NP Accumulating',   emptyBg: '#f7f0dc', fillColor: '#e8c45a' },
   np_frac:  { bg: '#f7f0dc', color: '#8a6820', label: 'NP Fractional',     emptyBg: '#f7f0dc', fillColor: '#e8c45a' },
 };
 
@@ -116,6 +116,7 @@ function OffsetTile({
   tooltipColor = '#ffffff',
   progress = 1,
   index,
+  small = false,
 }: {
   value: string;
   bg: string;
@@ -126,6 +127,7 @@ function OffsetTile({
   tooltipColor?: string;
   progress?: number;
   index?: number;
+  small?: boolean;
 }) {
   const loaded = useCowLoaded();
   const fill = fillColor ?? bg;
@@ -138,10 +140,10 @@ function OffsetTile({
         {value} tCO₂e
       </div>
       {!loaded ? (
-        <div className="rounded-lg sm:rounded-xl animate-pulse bg-gray-200 w-20 h-20 sm:w-24 sm:h-24" />
+        <div className={`rounded-lg animate-pulse bg-gray-200 ${small ? 'w-12 h-12' : 'w-20 h-20 sm:w-24 sm:h-24'}`} />
       ) : (
         <div
-          className="relative flex items-center justify-center rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-default overflow-hidden"
+          className={`relative flex items-center justify-center rounded-lg border cursor-default overflow-hidden ${small ? 'p-2' : 'p-3 sm:p-4 sm:rounded-xl'}`}
           style={{ backgroundColor: bg, borderColor: border }}
         >
           {/* Water fill */}
@@ -176,7 +178,7 @@ function OffsetTile({
           <img
             src="/cownew.png"
             alt="cow"
-            className="w-14 h-14 sm:w-16 sm:h-16 object-contain relative z-10"
+            className={`object-contain relative z-10 ${small ? 'w-8 h-8' : 'w-14 h-14 sm:w-16 sm:h-16'}`}
             style={iconFilter ? { filter: iconFilter } : undefined}
           />
         </div>
@@ -186,32 +188,42 @@ function OffsetTile({
 }
 
 // ─── Grid Data ────────────────────────────────────────────────────────────────
-// MM: 65 full (all Kattuputhur) + 2 accumulating + 11 fractional = 78
+// MM: 65 full (all Kattuputhur) + 2 accumulating + 11 fractional = 78 (shuffled)
 // NP: 5 full + 1 accumulating (450 cow·days → 0.7397) = 6
 // Total: 84 tiles  (6 rows × 14 cols)
-const GRID: Cube[] = [
-  // ── MM — 65 full credits (Kattuputhur) ───────────────────────────────────
-  ...Array.from({ length: 65 }, (_, i): Cube => ({ id: `mmf${i + 1}`, value: 1.0, status: 'mm_full' })),
-  // ── MM — 2 accumulating ───────────────────────────────────────────────────
-  { id: 'mma1', value: 0.7132, status: 'mm_acc' },
-  { id: 'mma2', value: 0.9233, status: 'mm_acc' },
-  // ── MM — 11 fractional ───────────────────────────────────────────────────
-  { id: 'mmfr1',  value: 0.0025, status: 'mm_frac' },
-  { id: 'mmfr2',  value: 0.0041, status: 'mm_frac' },
-  { id: 'mmfr3',  value: 0.0030, status: 'mm_frac' },
-  { id: 'mmfr4',  value: 0.0012, status: 'mm_frac' },
-  { id: 'mmfr5',  value: 0.0028, status: 'mm_frac' },
-  { id: 'mmfr6',  value: 0.0024, status: 'mm_frac' },
-  { id: 'mmfr7',  value: 0.0034, status: 'mm_frac' },
-  { id: 'mmfr8',  value: 0.0016, status: 'mm_frac' },
-  { id: 'mmfr9',  value: 0.0029, status: 'mm_frac' },
-  { id: 'mmfr10', value: 0.0038, status: 'mm_frac' },
-  { id: 'mmfr11', value: 0.0011, status: 'mm_frac' },
-  // ── NP — 5 full credits (NainarPalayam) ──────────────────────────────────
+const MM_FULL: Cube[] = Array.from({ length: 65 }, (_, i): Cube => ({ id: `mmf${i + 1}`, value: 1.0, status: 'mm_full' }));
+const MM_MINORITY: Cube[] = [
+  { id: 'mma1',  value: 0.7132, status: 'mm_acc'  },
+  { id: 'mmfr1', value: 0.0025, status: 'mm_frac' },
+  { id: 'mmfr2', value: 0.0041, status: 'mm_frac' },
+  { id: 'mma2',  value: 0.9233, status: 'mm_acc'  },
+  { id: 'mmfr3', value: 0.0030, status: 'mm_frac' },
+  { id: 'mmfr4', value: 0.0012, status: 'mm_frac' },
+  { id: 'mmfr5', value: 0.0028, status: 'mm_frac' },
+  { id: 'mmfr6', value: 0.0024, status: 'mm_frac' },
+  { id: 'mmfr7', value: 0.0034, status: 'mm_frac' },
+  { id: 'mmfr8', value: 0.0016, status: 'mm_frac' },
+  { id: 'mmfr9', value: 0.0029, status: 'mm_frac' },
+  { id: 'mmfr10',value: 0.0038, status: 'mm_frac' },
+  { id: 'mmfr11',value: 0.0011, status: 'mm_frac' },
+];
+
+// Interleave minority tiles evenly across the full tiles
+function interleave(base: Cube[], inserts: Cube[]): Cube[] {
+  const step = base.length / (inserts.length + 1);
+  const result = [...base];
+  inserts.forEach((item, i) => {
+    result.splice(Math.round((i + 1) * step) + i, 0, item);
+  });
+  return result;
+}
+
+const NP_TILES: Cube[] = [
   ...Array.from({ length: 5 }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
-  // ── NP — 1 accumulating (450 cow·days) ───────────────────────────────────
   { id: 'npa1', value: parseFloat((450 / (365 / 0.6)).toFixed(4)), status: 'np_acc' },
 ];
+
+const GRID: Cube[] = [...interleave(MM_FULL, MM_MINORITY), ...NP_TILES];
 
 // Carbon credit conversion: 1 cow × 365 days = 0.6 tCO₂e  →  1 tCO₂e = 365/0.6 ≈ 608.33 cow·days
 const COW_DAYS_PER_CC = 365 / 0.6; // 608.333...
@@ -455,15 +467,8 @@ function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => 
           </div>
         )}
 
-        <CowIcon className="cow-icon w-14 h-14 relative z-10" color={cfg.color} />
+        <CowIcon className="cow-icon w-9 h-9 relative z-10" color={cfg.color} />
 
-        {/* Project badge — bottom-left */}
-        <span
-          className="absolute bottom-1 left-1 text-[9px] font-bold leading-none px-1 py-0.5 rounded z-20 hidden sm:inline"
-          style={{ color: cfg.color }}
-        >
-          {cube.status.startsWith('mm') ? 'MM' : 'NP'}
-        </span>
       </button>
     </div>
   );
@@ -688,12 +693,13 @@ export default function DashboardPage() {
               <OffsetTile
                 key={i}
                 value="1.00"
-                bg="#e8d5f0"
-                fillColor="#9A60A8"
-                border="#7a4a88"
+                bg="#6d8fa3"
+                fillColor="#4A6274"
+                border="#3a5262"
                 iconFilter="brightness(0) invert(1)"
-                tooltipBg="#7a4a88"
+                tooltipBg="#4A6274"
                 progress={1}
+                small
               />
             ))}
             <OffsetTile
@@ -704,6 +710,7 @@ export default function DashboardPage() {
               tooltipBg={C.mm_acc.bg}
               tooltipColor={C.mm_frac.color}
               progress={TODAY_TOTAL_FLOW % 1}
+              small
             />
           </div>
           <div className="flex items-baseline gap-1.5 mb-3">

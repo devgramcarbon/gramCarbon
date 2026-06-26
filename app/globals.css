@@ -112,26 +112,26 @@ body {
 
 .offset-matrix-grid {
   display: grid;
-  gap: 3px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 @media (min-width: 640px) {
   .offset-matrix-grid {
-    gap: 6px;
-    grid-template-columns: repeat(14, minmax(0, 1fr));
+    gap: 4px;
+    grid-template-columns: repeat(18, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1024px) {
   .offset-matrix-grid.panel-open {
-    gap: 3px;
+    gap: 2px;
     grid-template-columns: repeat(14, minmax(0, 1fr));
   }
 
   .offset-matrix-grid.panel-open .cow-icon {
-    width: 2rem;
-    height: 2rem;
+    width: 1.75rem;
+    height: 1.75rem;
   }
 }
 
