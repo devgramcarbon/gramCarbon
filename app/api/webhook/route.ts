@@ -291,7 +291,8 @@ async function handleMessage(phone: string, text: string, profileName?: string):
     await resetSession(session);
     await sendText(phone, `Reply 1 (Record Sale), 2 (Check Stock), 3 (View Sales), or 4 (Register Farmer)`);
   } catch (err) {
-    logger.error('Bot handler error', { err: (err as Error).message, phone });
+    const detail = axios.isAxiosError(err) ? err.response?.data : undefined;
+    logger.error('Bot handler error', { err: (err as Error).message, detail, phone });
     await notifySystemError('webhook', (err as Error).message);
     await sendText(phone, '⚠️ An error occurred. Please try again.');
     await resetSession(session);
