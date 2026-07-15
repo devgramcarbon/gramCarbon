@@ -10,12 +10,12 @@ export const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'OPERATOR']).optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'ZE_ADMIN', 'ZE_ACC']).optional(),
 });
 
 export const updateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'OPERATOR']).optional(),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'ZE_ADMIN', 'ZE_ACC']).optional(),
   isActive: z.boolean().optional(),
   password: z.string().min(8).optional(),
 });
@@ -72,6 +72,43 @@ export const createDistributorSchema = z.object({
 });
 
 export { normalizeIndianPhone };
+
+const dashboardAccessSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+export const createBusinessContactSchema = z.object({
+  name: z.string().min(2).max(100),
+  org: z.enum(['MILKY_MIST', 'ZEROEARTH']),
+  department: z.enum(['PRODUCTION', 'ACCOUNTS', 'ADMINISTRATION']),
+  phone: phoneField,
+  dashboardAccess: dashboardAccessSchema.optional(),
+});
+
+export const updateBusinessContactSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  org: z.enum(['MILKY_MIST', 'ZEROEARTH']).optional(),
+  department: z.enum(['PRODUCTION', 'ACCOUNTS', 'ADMINISTRATION']).optional(),
+  phone: phoneField.optional(),
+  isActive: z.boolean().optional(),
+  dashboardAccess: dashboardAccessSchema.optional(),
+  revokeDashboardAccess: z.boolean().optional(),
+});
+
+export const createPurchaseOrderSchema = z.object({
+  poNumber: z.string().min(1, 'PO number is required').max(100),
+  client: z.string().min(1, 'Client is required').max(200),
+  batch: z.string().max(100).optional(),
+  qty: z.coerce.number().positive().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const acknowledgePurchaseOrderSchema = z.object({
+  qty: z.coerce.number().positive().optional(),
+  rate: z.coerce.number().positive().optional(),
+  amount: z.coerce.number().positive().optional(),
+});
 
 export const sendMessageSchema = z.object({
   phone: z.string().min(10, 'Recipient phone required'),

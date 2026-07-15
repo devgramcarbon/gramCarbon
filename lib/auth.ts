@@ -109,6 +109,25 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'messages:send',
     'notifications:read',
   ],
+  ZE_ADMIN: [
+    'dashboard:read',
+    'ze:tickets:read',
+    'ze:po:read', 'ze:po:write',
+    'ze:production:read',
+    'ze:documents:read',
+    'ze:dispatch:read',
+    'ze:payments:read',
+    'ze:closure:read', 'ze:closure:write',
+  ],
+  ZE_ACC: [
+    'dashboard:read',
+    'ze:tickets:read',
+    'ze:qaqc-weighbridge:read', 'ze:qaqc-weighbridge:write',
+    'ze:invoices:read', 'ze:invoices:write',
+    'ze:pending-bills:read',
+    'ze:payment-console:read', 'ze:payment-console:write',
+    'ze:closed-tickets:read',
+  ],
 };
 
 export function hasPermission(role: UserRole, permission: string): boolean {

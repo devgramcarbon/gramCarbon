@@ -7,7 +7,9 @@ import axios from 'axios';
 import {
   LayoutDashboard, Users, UserCheck, Package, ShoppingCart,
   MessageSquare, FileText, BarChart3, Settings, Shield, Terminal,
-  LogOut, X, Wifi, WifiOff, type LucideIcon,
+  LogOut, X, Building2, LayoutList, ClipboardList, Factory, FolderOpen,
+  Truck, Wallet, CheckCircle2, FileCheck2, Receipt, CalendarClock,
+  CreditCard, Archive, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -16,6 +18,9 @@ interface NavItem {
   icon: LucideIcon;
   exact?: boolean;
   adminOnly?: boolean;
+  superAdminOnly?: boolean;
+  zeAdminOnly?: boolean;
+  zeAccOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -27,9 +32,27 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/templates', label: 'Templates', icon: FileText, adminOnly: true },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
+  { href: '/dashboard/business-contacts', label: 'Business Contacts', icon: Building2, superAdminOnly: true },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, adminOnly: true },
   { href: '/dashboard/audit-logs', label: 'Audit Logs', icon: Shield, adminOnly: true },
   { href: '/dashboard/server-logs', label: 'Server Logs', icon: Terminal, adminOnly: true },
+
+  // ZE Admin dashboard
+  { href: '/dashboard/ze/tickets', label: 'Master Ticket Console', icon: LayoutList, zeAdminOnly: true },
+  { href: '/dashboard/ze/po', label: 'PO Management', icon: ClipboardList, zeAdminOnly: true },
+  { href: '/dashboard/ze/production', label: 'Production Oversight', icon: Factory, zeAdminOnly: true },
+  { href: '/dashboard/ze/documents', label: 'Document Control', icon: FolderOpen, zeAdminOnly: true },
+  { href: '/dashboard/ze/dispatch', label: 'Dispatch Tracker', icon: Truck, zeAdminOnly: true },
+  { href: '/dashboard/ze/payments', label: 'Payment Oversight', icon: Wallet, zeAdminOnly: true },
+  { href: '/dashboard/ze/closure', label: 'Ticket Closure', icon: CheckCircle2, zeAdminOnly: true },
+
+  // ZE Accounts dashboard
+  { href: '/dashboard/ze-acc/tickets', label: 'Ticket Queue', icon: LayoutList, zeAccOnly: true },
+  { href: '/dashboard/ze-acc/qaqc-weighbridge', label: 'QAQC & Weighbridge', icon: FileCheck2, zeAccOnly: true },
+  { href: '/dashboard/ze-acc/invoices', label: 'Invoices', icon: Receipt, zeAccOnly: true },
+  { href: '/dashboard/ze-acc/pending-bills', label: 'Pending Bills', icon: CalendarClock, zeAccOnly: true },
+  { href: '/dashboard/ze-acc/payment-console', label: 'Payment Console', icon: CreditCard, zeAccOnly: true },
+  { href: '/dashboard/ze-acc/closed-tickets', label: 'Closed Tickets', icon: Archive, zeAccOnly: true },
 ];
 
 interface SidebarProps {
@@ -39,14 +62,22 @@ interface SidebarProps {
   setMobileOpen?: (open: boolean) => void;
 }
 
-export default function Sidebar({ user, connected = false, mobileOpen = false, setMobileOpen }: SidebarProps) {
+export default function Sidebar({ user, mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => { setMobileOpen?.(false); }, [pathname]);
 
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-  const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isZeAdmin = user?.role === 'ZE_ADMIN';
+  const isZeAcc = user?.role === 'ZE_ACC';
+  const items = NAV_ITEMS.filter((i) => {
+    if (i.zeAdminOnly) return isZeAdmin;
+    if (i.zeAccOnly) return isZeAcc;
+    if (isZeAdmin || isZeAcc) return i.exact === true;
+    return (!i.adminOnly || isAdmin) && (!i.superAdminOnly || isSuperAdmin);
+  });
 
   const isActive = (item: NavItem) => item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
@@ -89,11 +120,6 @@ export default function Sidebar({ user, connected = false, mobileOpen = false, s
       </nav>
 
       <div className="px-3 pb-4 space-y-2 border-t border-gray-100 dark:border-[#21262d] pt-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-gray-400">
-          {connected
-            ? <><Wifi size={13} className="text-teal-500" /><span className="text-teal-600">Live</span></>
-            : <><WifiOff size={13} /><span>Offline</span></>}
-        </div>
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1c2128]">
           <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">{user?.name?.[0]?.toUpperCase() || 'A'}</span>

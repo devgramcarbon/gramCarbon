@@ -5,7 +5,7 @@ export interface IUser {
   name: string;
   email: string;
   password: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR' | 'ZE_ADMIN' | 'ZE_ACC';
   isActive: boolean;
   lastLogin?: Date;
   createdAt: Date;
@@ -24,7 +24,7 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 8 },
-    role: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'], default: 'OPERATOR' },
+    role: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'ZE_ADMIN', 'ZE_ACC'], default: 'OPERATOR' },
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date },
   },

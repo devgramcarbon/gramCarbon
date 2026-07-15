@@ -1,6 +1,6 @@
 import type { JWTPayload } from 'jose';
 
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR' | 'ZE_ADMIN' | 'ZE_ACC';
 
 export interface AuthPayload extends JWTPayload {
   userId: string;

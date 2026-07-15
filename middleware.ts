@@ -9,6 +9,8 @@ const PUBLIC_PATHS = [
   '/api/webhook',
   '/api/health',
   '/api/status',
+  '/api/seed',
+  '/api/debug-env',
   '/_next',
   '/favicon.ico',
 ];
