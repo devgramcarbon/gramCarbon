@@ -6,8 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import {
   LayoutDashboard, Users, UserCheck, Package, ShoppingCart,
-  MessageSquare, FileText, BarChart3, Settings, Shield, Terminal,
-  LogOut, X, Building2, LayoutList, ClipboardList, Factory, FolderOpen,
+  MessageSquare, BarChart3, Settings, Shield, Terminal,
+  LogOut, X, LayoutList, ClipboardList, Factory, FolderOpen,
   Truck, Wallet, CheckCircle2, FileCheck2, Receipt, CalendarClock,
   CreditCard, Archive, type LucideIcon,
 } from 'lucide-react';
@@ -30,9 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard/stock', label: 'Stock', icon: Package },
   { href: '/dashboard/sales', label: 'Sales', icon: ShoppingCart },
   { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
-  { href: '/dashboard/templates', label: 'Templates', icon: FileText, adminOnly: true },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
-  { href: '/dashboard/business-contacts', label: 'Business Contacts', icon: Building2, superAdminOnly: true },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, adminOnly: true },
   { href: '/dashboard/audit-logs', label: 'Audit Logs', icon: Shield, adminOnly: true },
   { href: '/dashboard/server-logs', label: 'Server Logs', icon: Terminal, adminOnly: true },
@@ -40,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   // ZE Admin dashboard
   { href: '/dashboard/ze/tickets', label: 'Master Ticket Console', icon: LayoutList, zeAdminOnly: true },
   { href: '/dashboard/ze/po', label: 'PO Management', icon: ClipboardList, zeAdminOnly: true },
-  { href: '/dashboard/ze/production', label: 'Production Oversight', icon: Factory, zeAdminOnly: true },
+  { href: '/dashboard/ze/production', label: 'Production Oversight', icon: Factory, zeAdminOnly: true, adminOnly: true },
   { href: '/dashboard/ze/documents', label: 'Document Control', icon: FolderOpen, zeAdminOnly: true },
   { href: '/dashboard/ze/dispatch', label: 'Dispatch Tracker', icon: Truck, zeAdminOnly: true },
   { href: '/dashboard/ze/payments', label: 'Payment Oversight', icon: Wallet, zeAdminOnly: true },
@@ -73,7 +71,7 @@ export default function Sidebar({ user, mobileOpen = false, setMobileOpen }: Sid
   const isZeAdmin = user?.role === 'ZE_ADMIN';
   const isZeAcc = user?.role === 'ZE_ACC';
   const items = NAV_ITEMS.filter((i) => {
-    if (i.zeAdminOnly) return isZeAdmin;
+    if (i.zeAdminOnly) return isZeAdmin || (i.adminOnly && isAdmin);
     if (i.zeAccOnly) return isZeAcc;
     if (isZeAdmin || isZeAcc) return i.exact === true;
     return (!i.adminOnly || isAdmin) && (!i.superAdminOnly || isSuperAdmin);

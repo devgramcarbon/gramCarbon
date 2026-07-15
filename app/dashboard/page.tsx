@@ -379,6 +379,14 @@ function hashNum(s: string, mod: number) {
   return h % mod;
 }
 
+// Society index (MM_SOCIETIES order) → MCC code, for pulling real collection data
+const MCC_CODE_BY_SOCIETY_IDX = [508, 504, 507, 526, 537, 512, 520];
+
+function getLatestMccStats(code: number) {
+  const rows = MCC_MONTHLY_DATA.filter((r) => r.code === code);
+  return rows.length ? rows[rows.length - 1] : null;
+}
+
 function deriveOffsetDetails(cube: Cube) {
   const isMM = cube.status.startsWith('mm');
   const h = hashNum(cube.id, 1000);
@@ -403,6 +411,7 @@ function deriveOffsetDetails(cube: Cube) {
   const location = isMM ? MM_LOCATIONS[societyGlobalIdx] : NP_LOCATIONS[0];
   const coords   = PLACE_COORDS[location] ?? [20.5937, 78.9629];
   const joinDate = isMM ? MM_JOIN_DATES[societyGlobalIdx] : { month: 'Jan', year: '2025' };
+  const mccStats = isMM ? getLatestMccStats(MCC_CODE_BY_SOCIETY_IDX[societyGlobalIdx]) : null;
 
   return {
     id: `#${3400 + h}`,
@@ -413,8 +422,12 @@ function deriveOffsetDetails(cube: Cube) {
     lon: coords[1],
     generatedOn: `${(h % 28) + 1} ${joinDate.month} ${joinDate.year}`,
     ch4owUsed: isFull ? 245 : Math.round(cube.value * 245),
-    animals:   isFull ? 112 : Math.max(1, Math.round(cube.value * 112)),
-    farmers:   isFull ? 38  : Math.max(1, Math.round(cube.value * 38)),
+    animals:   mccStats ? mccStats.animals   : isFull ? 112 : Math.max(1, Math.round(cube.value * 112)),
+    farmers:   mccStats ? mccStats.producers : isFull ? 38  : Math.max(1, Math.round(cube.value * 38)),
+    milkQty:   mccStats?.milkQty,
+    fat:       mccStats?.fat,
+    snf:       mccStats?.snf,
+    mccMonth:  mccStats?.month,
     reduction: cube.value,
     status: isFull ? 'Available for Retirement' : isAcc ? 'Accumulating' : 'Fractional — In Progress',
     isMM,
@@ -431,6 +444,26 @@ const MM_OFFSET_COMPOSITION = [
   { name: 'MCC-512, Rasipuram',    cowDays: 11780,  color: '#e8c45a' },
   { name: 'MCC-537, Namakkal',     cowDays: 6882,   color: '#ef4444' },
 ].map((s) => ({ name: s.name, value: parseFloat((s.cowDays / MM_TOTAL_COWDAYS * 100).toFixed(1)), color: s.color }));
+
+const MCC_MONTHLY_DATA = [
+  { month: 'December', code: 504, name: 'Attur',        qtyPerDay: 33284.26, producers: 2333, producer: 446, milkQty: 6512,  fat: 4.6,  snf: 8.1,  animals: 521 },
+  { month: 'January',  code: 504, name: 'Attur',        qtyPerDay: 34081.44, producers: 2376, producer: 434, milkQty: 6268,  fat: 4.5,  snf: 8.07, animals: 666 },
+  { month: 'February', code: 504, name: 'Attur',        qtyPerDay: 36024.34, producers: 2554, producer: 475, milkQty: 6875,  fat: 4.4,  snf: 8,    animals: 735 },
+  { month: 'May',      code: 504, name: 'Attur',        qtyPerDay: 40737.90, producers: 2679, producer: 458, milkQty: 7257,  fat: 4.2,  snf: 8,    animals: 755 },
+  { month: 'May',      code: 507, name: 'Kabilarmala',  qtyPerDay: 8573.90,  producers: 873,  producer: 167, milkQty: 2422,  fat: 4.22, snf: 7.94, animals: 384 },
+  { month: 'May',      code: 526, name: 'Kallakurichi', qtyPerDay: 19231.10, producers: 2235, producer: 372, milkQty: 4378,  fat: 4.41, snf: 7.98, animals: 547 },
+  { month: 'October',  code: 508, name: 'Kattuputhur',  qtyPerDay: 27055.46, producers: 2181, producer: 341, milkQty: 4322,  fat: 4.56, snf: 7.99, animals: 697 },
+  { month: 'November', code: 508, name: 'Kattuputhur',  qtyPerDay: 26852.43, producers: 2205, producer: 342, milkQty: 4396,  fat: 4.5,  snf: 8.03, animals: 725 },
+  { month: 'December', code: 508, name: 'Kattuputhur',  qtyPerDay: 28611.18, producers: 2237, producer: 317, milkQty: 4056,  fat: 4.52, snf: 8.03, animals: 494 },
+  { month: 'January',  code: 508, name: 'Kattuputhur',  qtyPerDay: 29072.93, producers: 2299, producer: 342, milkQty: 4315,  fat: 4.53, snf: 7.98, animals: 713 },
+  { month: 'February', code: 508, name: 'Kattuputhur',  qtyPerDay: 29274.76, producers: 2348, producer: 368, milkQty: 4580,  fat: 4.46, snf: 8.01, animals: 755 },
+  { month: 'March',    code: 508, name: 'Kattuputhur',  qtyPerDay: 29110.48, producers: 2345, producer: 310, milkQty: 4000,  fat: 4.4,  snf: 7.99, animals: 645 },
+  { month: 'April',    code: 508, name: 'Kattuputhur',  qtyPerDay: 29830.90, producers: 2347, producer: 295, milkQty: 3696,  fat: 4.3,  snf: 7.98, animals: 592 },
+  { month: 'May',      code: 508, name: 'Kattuputhur',  qtyPerDay: 31432.00, producers: 2350, producer: 288, milkQty: 3839,  fat: 4.33, snf: 7.97, animals: 613 },
+  { month: 'May',      code: 537, name: 'Namakkal',     qtyPerDay: 9474.70,  producers: 684,  producer: 87,  milkQty: 1460,  fat: 4.42, snf: 8.07, animals: 222 },
+  { month: 'May',      code: 512, name: 'Rasipuram',    qtyPerDay: 11725.30, producers: 1169, producer: 184, milkQty: 2426,  fat: 4.15, snf: 7.84, animals: 380 },
+  { month: 'May',      code: 520, name: 'Thuraiyur',    qtyPerDay: 57174.40, producers: 3877, producer: 767, milkQty: 12511, fat: 4.28, snf: 8.05, animals: 2689 },
+];
 
 const NP_OFFSET_COMPOSITION = [
   { name: 'NainarPalayam', value: 100, color: '#9A60A8' },
@@ -1289,6 +1322,55 @@ export default function DashboardPage() {
           </div>
 
         </div>
+
+        {/* MCC Monthly Detail Table */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <p className="text-xs font-semibold text-gray-700 mb-3">MCC Monthly Details</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-gray-500">
+                  <th className="py-2 pr-3 font-semibold">Month</th>
+                  <th className="py-2 pr-3 font-semibold">MCC Code</th>
+                  <th className="py-2 pr-3 font-semibold">MCC Name</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Quantity / Day</th>
+                  <th className="py-2 pr-3 font-semibold text-right">No Of Producers</th>
+                  <th className="py-2 pr-3 font-semibold text-right">No Of Producer</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Milk Quantity</th>
+                  <th className="py-2 pr-3 font-semibold text-right">FAT%</th>
+                  <th className="py-2 pr-3 font-semibold text-right">SNF%</th>
+                  <th className="py-2 pr-3 font-semibold text-right">No Of Animal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MCC_MONTHLY_DATA.map((r, i) => (
+                  <tr key={i} className="border-b border-gray-50 text-gray-700">
+                    <td className="py-2 pr-3">{r.month}</td>
+                    <td className="py-2 pr-3">{r.code}</td>
+                    <td className="py-2 pr-3">{r.name}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.qtyPerDay.toLocaleString()}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.producers.toLocaleString()}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.producer.toLocaleString()}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.milkQty.toLocaleString()}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.fat}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.snf}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{r.animals.toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr className="text-gray-900 font-semibold border-t border-gray-200">
+                  <td className="py-2 pr-3" colSpan={3}>Total / Average</td>
+                  <td className="py-2 pr-3 text-right font-mono">178,349.37</td>
+                  <td className="py-2 pr-3 text-right font-mono">13,867</td>
+                  <td className="py-2 pr-3 text-right font-mono">2,358</td>
+                  <td className="py-2 pr-3 text-right font-mono">34,501</td>
+                  <td className="py-2 pr-3 text-right font-mono">4.4</td>
+                  <td className="py-2 pr-3 text-right font-mono">8</td>
+                  <td className="py-2 pr-3 text-right font-mono">5,590</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* ── Right Panel — Offset Details ───────────────────────────────────── */}
@@ -1352,6 +1434,9 @@ export default function DashboardPage() {
             <DetailRow icon={<Droplets size={13} />}   label="CH₄OW Used"            value={`${offsetDetails.ch4owUsed} kg`} />
             <DetailRow icon={<CowIcon size={13} />}    label="Animals"               value={String(offsetDetails.animals)} />
             <DetailRow icon={<Users size={13} />}      label="Farmers"               value={String(offsetDetails.farmers)} />
+            {offsetDetails.milkQty !== undefined && (
+              <DetailRow icon={<Droplets size={13} />} label={`Milk Collected${offsetDetails.mccMonth ? ` (${offsetDetails.mccMonth})` : ''}`} value={`${offsetDetails.milkQty.toLocaleString()} L · FAT ${offsetDetails.fat}% · SNF ${offsetDetails.snf}%`} />
+            )}
             <DetailRow icon={<Leaf size={13} />}       label="Reduction"             value={`${offsetDetails.reduction.toFixed(4)} tCO₂e`} />
             <DetailRow icon={<CheckCircle2 size={13} />} label="Status"              value={offsetDetails.status} green />
           </div>
