@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import axios from 'axios';
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   AreaChart, Area, Tooltip as RechartTooltip,
@@ -10,6 +11,7 @@ import {
   Info, Grid3X3, List, ChevronRight, X, CheckCircle2,
   Calendar, Building2, Users, Leaf, Droplets, Factory, Maximize2,
 } from 'lucide-react';
+import { useProjectFilter } from './ProjectFilterContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Two project families × 3 states
@@ -216,8 +218,7 @@ function OffsetTile({
 
 // ─── Grid Data ────────────────────────────────────────────────────────────────
 // MM: 65 full (all Kattuputhur) + 2 accumulating + 11 fractional = 78 (shuffled)
-// NP: 5 full + 1 accumulating (450 cow·days → 0.7397) = 6
-// Total: 84 tiles  (6 rows × 14 cols)
+// NP: derived from real data — 102 animals × 383 days = 39,066 cow-days @ 0.68t/cow/yr
 const MM_FULL: Cube[] = Array.from({ length: 65 }, (_, i): Cube => ({ id: `mmf${i + 1}`, value: 1.0, status: 'mm_full' }));
 const MM_MINORITY: Cube[] = [
   { id: 'mma1',  value: 0.7132, status: 'mm_acc'  },
@@ -245,19 +246,27 @@ function interleave(base: Cube[], inserts: Cube[]): Cube[] {
   return result;
 }
 
+// NP totals derived from real NainarPalayam data: 102 animals × 383 active days = 39,066 cow-days
+const NP_TOTAL_COWDAYS = 102 * 383;
+const NP_FULL_COUNT = Math.floor(NP_TOTAL_COWDAYS / (365 / 0.68));
+const NP_FRAC_COWDAYS = NP_TOTAL_COWDAYS - NP_FULL_COUNT * (365 / 0.68);
+const NP_FRAC_VALUE = parseFloat((NP_FRAC_COWDAYS / (365 / 0.68)).toFixed(4));
+
 const NP_TILES: Cube[] = [
-  ...Array.from({ length: 5 }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
-  { id: 'npa1', value: parseFloat((450 / (365 / 0.6)).toFixed(4)), status: 'np_acc' },
+  ...Array.from({ length: NP_FULL_COUNT }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
+  ...(NP_FRAC_VALUE > 0
+    ? [{ id: 'npa1', value: NP_FRAC_VALUE, status: (NP_FRAC_VALUE >= 0.5 ? 'np_acc' : 'np_frac') as OffsetStatus }]
+    : []),
 ];
 
 const GRID: Cube[] = [...interleave(MM_FULL, MM_MINORITY), ...NP_TILES];
 
-// Carbon credit conversion: 1 cow × 365 days = 0.6 tCO₂e  →  1 tCO₂e = 365/0.6 ≈ 608.33 cow·days
-const COW_DAYS_PER_CC = 365 / 0.6; // 608.333...
+// Carbon credit conversion: 1 cow × 365 days = 0.68 tCO₂e  →  1 tCO₂e = 365/0.68 ≈ 536.76 cow·days
+const COW_DAYS_PER_CC = 365 / 0.68; // ≈536.76
 
-// NainarPalayam farm (separate from Milky Mist MCCs)
+// NainarPalayam farm (separate from Milky Mist MCCs) — 7/7/25 to 25/7/26
 const COWS_NAINAR    = 102;
-const DAYS_NAINAR    = 275;
+const DAYS_NAINAR    = 383;
 
 // Milky Mist MCCs aggregate (Oct 2025 – May 2026 from spreadsheet)
 const MM_TOTAL_FRAC_CREDITS = 370336; // total cow·days across all MCCs
@@ -265,18 +274,18 @@ const FULL_CC_TOTAL  = Math.floor(MM_TOTAL_FRAC_CREDITS / COW_DAYS_PER_CC); // 6
 const FRAC_CC_TOTAL  = Math.round(MM_TOTAL_FRAC_CREDITS % COW_DAYS_PER_CC); // ~469
 
 // Daily tCO₂e flow based on May 2026 animal count (5590 animals × 0.6 / 365)
-const FLOW_ACCUMULATED = parseFloat((5590 * 0.6 / 365).toFixed(4));
+const FLOW_ACCUMULATED = parseFloat((5590 * 0.68 / 365).toFixed(4));
 
 // Actual monthly tCO₂e from spreadsheet (cow·days × 0.6 / 365)
 const MONTHLY_STATUS = [
-  { month: "Oct '25", tCO2: parseFloat((21607           * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Nov '25", tCO2: parseFloat((21750           * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Dec '25", tCO2: parseFloat(((16151 + 15314) * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Jan '26", tCO2: parseFloat(((20646 + 22103) * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Feb '26", tCO2: parseFloat(((20580 + 21140) * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Mar '26", tCO2: parseFloat((19995           * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "Apr '26", tCO2: parseFloat((17760           * 0.6 / 365).toFixed(3)), status: 'full'    },
-  { month: "May '26", tCO2: parseFloat((173290          * 0.6 / 365).toFixed(3)), status: 'full'    },
+  { month: "Oct '25", tCO2: parseFloat((21607           * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Nov '25", tCO2: parseFloat((21750           * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Dec '25", tCO2: parseFloat(((16151 + 15314) * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Jan '26", tCO2: parseFloat(((20646 + 22103) * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Feb '26", tCO2: parseFloat(((20580 + 21140) * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Mar '26", tCO2: parseFloat((19995           * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "Apr '26", tCO2: parseFloat((17760           * 0.68 / 365).toFixed(3)), status: 'full'    },
+  { month: "May '26", tCO2: parseFloat((173290          * 0.68 / 365).toFixed(3)), status: 'full'    },
   { month: "Jun '26", tCO2: 0,                                                     status: 'partial' },
   { month: "Jul '26", tCO2: 0,                                                     status: 'pending' },
   { month: "Aug '26", tCO2: 0,                                                     status: 'pending' },
@@ -284,45 +293,45 @@ const MONTHLY_STATUS = [
 ];
 
 const BY_PROJECT = [
-  { name: 'Milky Mist MCCs', value: parseFloat((370336 * 0.6 / 365).toFixed(4)), color: '#0d9488' },
-  { name: 'NainarPalayam',   value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.6 / 365).toFixed(4)), color: '#9A60A8' },
+  { name: 'Milky Mist MCCs', value: parseFloat((370336 * 0.68 / 365).toFixed(4)), color: '#0d9488' },
+  { name: 'NainarPalayam',   value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.68 / 365).toFixed(4)), color: '#9A60A8' },
 ];
 
 const BY_SOCIETIES = [
-  { name: 'Kattuputhur',   value: parseFloat((158672                     * 0.6 / 365).toFixed(4)), color: '#0d9488' },
-  { name: 'Thuraiyur',     value: parseFloat((83359                      * 0.6 / 365).toFixed(4)), color: '#5cb8c4' },
-  { name: 'Attur',         value: parseFloat((80782                      * 0.6 / 365).toFixed(4)), color: '#7c3aed' },
-  { name: 'NainarPalayam', value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.6 / 365).toFixed(4)), color: '#9A60A8' },
-  { name: 'Kallakurichi',  value: parseFloat((16957                      * 0.6 / 365).toFixed(4)), color: '#c9870e' },
-  { name: 'Kabilarmalai',  value: parseFloat((11904                      * 0.6 / 365).toFixed(4)), color: '#8b5cf6' },
-  { name: 'Rasipuram',     value: parseFloat((11780                      * 0.6 / 365).toFixed(4)), color: '#64748b' },
-  { name: 'Namakkal',      value: parseFloat((6882                       * 0.6 / 365).toFixed(4)), color: '#ef4444' },
+  { name: 'Kattuputhur',   value: parseFloat((158672                     * 0.68 / 365).toFixed(4)), color: '#0d9488' },
+  { name: 'Thuraiyur',     value: parseFloat((83359                      * 0.68 / 365).toFixed(4)), color: '#5cb8c4' },
+  { name: 'Attur',         value: parseFloat((80782                      * 0.68 / 365).toFixed(4)), color: '#7c3aed' },
+  { name: 'NainarPalayam', value: parseFloat((COWS_NAINAR * DAYS_NAINAR * 0.68 / 365).toFixed(4)), color: '#9A60A8' },
+  { name: 'Kallakurichi',  value: parseFloat((16957                      * 0.68 / 365).toFixed(4)), color: '#c9870e' },
+  { name: 'Kabilarmalai',  value: parseFloat((11904                      * 0.68 / 365).toFixed(4)), color: '#8b5cf6' },
+  { name: 'Rasipuram',     value: parseFloat((11780                      * 0.68 / 365).toFixed(4)), color: '#64748b' },
+  { name: 'Namakkal',      value: parseFloat((6882                       * 0.68 / 365).toFixed(4)), color: '#ef4444' },
 ];
 
 // All 7 Milky Mist MCCs + NainarPalayam — cow·days × 0.6 / 365 = tCO₂e
 const TOP_LOCATIONS = [
-  { name: 'Kattuputhur, TN',   value: parseFloat((158672                         * 0.6 / 365).toFixed(4)), lat: 11.10, lon: 77.90 },
-  { name: 'Thuraiyur, TN',     value: parseFloat((83359                          * 0.6 / 365).toFixed(4)), lat: 11.15, lon: 78.59 },
-  { name: 'Attur, TN',         value: parseFloat((80782                          * 0.6 / 365).toFixed(4)), lat: 11.60, lon: 78.60 },
-  { name: 'NainarPalayam, TN', value: parseFloat((COWS_NAINAR * DAYS_NAINAR      * 0.6 / 365).toFixed(4)), lat: 11.38, lon: 77.72 },
-  { name: 'Kallakurichi, TN',  value: parseFloat((16957                          * 0.6 / 365).toFixed(4)), lat: 11.74, lon: 78.96 },
-  { name: 'Rasipuram, TN',     value: parseFloat((11780                          * 0.6 / 365).toFixed(4)), lat: 11.46, lon: 78.17 },
-  { name: 'Kabilarmalai, TN',  value: parseFloat((11904                          * 0.6 / 365).toFixed(4)), lat: 11.40, lon: 78.50 },
-  { name: 'Namakkal, TN',      value: parseFloat((6882                           * 0.6 / 365).toFixed(4)), lat: 11.22, lon: 78.17 },
+  { name: 'Kattuputhur, TN',   value: parseFloat((158672                         * 0.68 / 365).toFixed(4)), lat: 11.10, lon: 77.90 },
+  { name: 'Thuraiyur, TN',     value: parseFloat((83359                          * 0.68 / 365).toFixed(4)), lat: 11.15, lon: 78.59 },
+  { name: 'Attur, TN',         value: parseFloat((80782                          * 0.68 / 365).toFixed(4)), lat: 11.60, lon: 78.60 },
+  { name: 'NainarPalayam, TN', value: parseFloat((COWS_NAINAR * DAYS_NAINAR      * 0.68 / 365).toFixed(4)), lat: 11.38, lon: 77.72 },
+  { name: 'Kallakurichi, TN',  value: parseFloat((16957                          * 0.68 / 365).toFixed(4)), lat: 11.74, lon: 78.96 },
+  { name: 'Rasipuram, TN',     value: parseFloat((11780                          * 0.68 / 365).toFixed(4)), lat: 11.46, lon: 78.17 },
+  { name: 'Kabilarmalai, TN',  value: parseFloat((11904                          * 0.68 / 365).toFixed(4)), lat: 11.40, lon: 78.50 },
+  { name: 'Namakkal, TN',      value: parseFloat((6882                           * 0.68 / 365).toFixed(4)), lat: 11.22, lon: 78.17 },
 ];
 
 // SVG path extents (from in.svg): M-coord range x 173.4–840.5, y 173.8–941.1 within 1000×1000 viewBox
 
 // Monthly daily-average tCO₂e (animals × 0.6 / 365)
 const ACTIVITY_DATA = [
-  { t: 0, v: parseFloat((697  * 0.6 / 365).toFixed(4)) }, // Oct 2025 — 697 animals
-  { t: 1, v: parseFloat((725  * 0.6 / 365).toFixed(4)) }, // Nov 2025 — 725
-  { t: 2, v: parseFloat((1015 * 0.6 / 365).toFixed(4)) }, // Dec 2025 — 521+494
-  { t: 3, v: parseFloat((1379 * 0.6 / 365).toFixed(4)) }, // Jan 2026 — 666+713
-  { t: 4, v: parseFloat((1490 * 0.6 / 365).toFixed(4)) }, // Feb 2026 — 735+755
-  { t: 5, v: parseFloat((645  * 0.6 / 365).toFixed(4)) }, // Mar 2026 — 645
-  { t: 6, v: parseFloat((592  * 0.6 / 365).toFixed(4)) }, // Apr 2026 — 592
-  { t: 7, v: parseFloat((5590 * 0.6 / 365).toFixed(4)) }, // May 2026 — 5590 (7 MCCs active)
+  { t: 0, v: parseFloat((697  * 0.68 / 365).toFixed(4)) }, // Oct 2025 — 697 animals
+  { t: 1, v: parseFloat((725  * 0.68 / 365).toFixed(4)) }, // Nov 2025 — 725
+  { t: 2, v: parseFloat((1015 * 0.68 / 365).toFixed(4)) }, // Dec 2025 — 521+494
+  { t: 3, v: parseFloat((1379 * 0.68 / 365).toFixed(4)) }, // Jan 2026 — 666+713
+  { t: 4, v: parseFloat((1490 * 0.68 / 365).toFixed(4)) }, // Feb 2026 — 735+755
+  { t: 5, v: parseFloat((645  * 0.68 / 365).toFixed(4)) }, // Mar 2026 — 645
+  { t: 6, v: parseFloat((592  * 0.68 / 365).toFixed(4)) }, // Apr 2026 — 592
+  { t: 7, v: parseFloat((5590 * 0.68 / 365).toFixed(4)) }, // May 2026 — 5590 (7 MCCs active)
 ];
 
 // ─── Per-cube offset detail derivation ───────────────────────────────────────
@@ -535,7 +544,7 @@ function DetailRow({
 
 
 // ─── Enlarged Location Map (Leaflet, all 8 pins) ─────────────────────────────
-function InlineLocationMap() {
+function InlineLocationMap({ locations = TOP_LOCATIONS }: { locations?: typeof TOP_LOCATIONS }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -561,7 +570,7 @@ function InlineLocationMap() {
       }).addTo(map);
 
       const markers: import('leaflet').Marker[] = [];
-      TOP_LOCATIONS.forEach((loc) => {
+      locations.forEach((loc) => {
         const icon = L.divIcon({
           html: `<div style="width:10px;height:10px;background:#ef4444;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
           iconSize: [10, 10], iconAnchor: [5, 5], className: '',
@@ -574,18 +583,21 @@ function InlineLocationMap() {
 
       if (markers.length > 0) {
         const group = L.featureGroup(markers);
-        map.fitBounds(group.getBounds(), { padding: [24, 24] });
-        map.zoomOut(2.5);
+        map.fitBounds(group.getBounds(), { padding: [24, 24], animate: false });
+        map.zoomOut(2.5, { animate: false });
       }
     });
 
-    return () => { cancelled = true; map?.remove(); };
-  }, []);
+    return () => {
+      cancelled = true;
+      if (map) { map.stop(); map.remove(); }
+    };
+  }, [locations]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
 
-function EnlargedLocationMap({ highlight }: { highlight?: { lat: number; lon: number } }) {
+function EnlargedLocationMap({ highlight, locations = TOP_LOCATIONS }: { highlight?: { lat: number; lon: number }; locations?: typeof TOP_LOCATIONS }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -612,13 +624,13 @@ function EnlargedLocationMap({ highlight }: { highlight?: { lat: number; lon: nu
         maxZoom: 20,
       }).addTo(map);
 
-      const locations = highlight
-        ? TOP_LOCATIONS.filter((loc) => Math.abs(loc.lat - highlight.lat) < 0.01 && Math.abs(loc.lon - highlight.lon) < 0.01)
-        : TOP_LOCATIONS;
+      const filteredLocations = highlight
+        ? locations.filter((loc) => Math.abs(loc.lat - highlight.lat) < 0.01 && Math.abs(loc.lon - highlight.lon) < 0.01)
+        : locations;
 
       const markers: import('leaflet').Marker[] = [];
 
-      locations.forEach((loc) => {
+      filteredLocations.forEach((loc) => {
         const icon = L.divIcon({
           html: highlight
             ? `<div style="width:18px;height:18px;background:#0d9488;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(13,148,136,0.5)"></div>`
@@ -638,18 +650,18 @@ function EnlargedLocationMap({ highlight }: { highlight?: { lat: number; lon: nu
 
       if (markers.length > 0) {
         const group = L.featureGroup(markers);
-        map.fitBounds(group.getBounds(), { padding: [48, 48] });
-        map.zoomOut(highlight ? 13 : 2);
+        map.fitBounds(group.getBounds(), { padding: [48, 48], animate: false });
+        map.zoomOut(highlight ? 13 : 2, { animate: false });
         markers[0].openPopup();
       }
     });
 
     return () => {
       cancelled = true;
-      map?.remove();
+      if (map) { map.stop(); map.remove(); }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [highlight, locations]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
@@ -1038,11 +1050,62 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isPanelClosing, setIsPanelClosing] = useState(false);
   const [mapEnlarged, setMapEnlarged] = useState<{ lat?: number; lon?: number } | null>(null);
+  const { project } = useProjectFilter();
+  const [npLive, setNpLive] = useState<{
+    animals: number;
+    fullOffsets: number;
+    fractionalRemainderValue: number;
+    totalOffsetValueTons: number;
+  } | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = mapEnlarged ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mapEnlarged]);
+
+  useEffect(() => {
+    axios.get<{ success: boolean; data: {
+      animals: number; fullOffsets: number; fractionalRemainderValue: number; totalOffsetValueTons: number;
+    } }>('/api/carbon-offsets')
+      .then(({ data }) => { if (data.success) setNpLive(data.data); })
+      .catch(() => {});
+  }, []);
+
+  // ── NainarPalayam figures: live from DB when loaded, static fallback until then ──
+  // Memoized so these arrays keep a stable reference across re-renders (e.g. selectedCubeId
+  // changes) — otherwise Leaflet's map instances in InlineLocationMap/EnlargedLocationMap get
+  // torn down and recreated on every render, which crashes with "_leaflet_pos" errors.
+  const npFullCount = npLive?.fullOffsets ?? NP_FULL_COUNT;
+  const npFracValue = npLive ? parseFloat(npLive.fractionalRemainderValue.toFixed(4)) : NP_FRAC_VALUE;
+  const npTotalTons = npLive?.totalOffsetValueTons ?? (COWS_NAINAR * DAYS_NAINAR * 0.68 / 365);
+
+  const gridLive: Cube[] = useMemo(() => {
+    const npTiles: Cube[] = [
+      ...Array.from({ length: npFullCount }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
+      ...(npFracValue > 0
+        ? [{ id: 'npa1', value: npFracValue, status: (npFracValue >= 0.5 ? 'np_acc' : 'np_frac') as OffsetStatus }]
+        : []),
+    ];
+    const all = [...interleave(MM_FULL, MM_MINORITY), ...npTiles];
+    if (project === 'mm') return all.filter((c) => c.status.startsWith('mm'));
+    if (project === 'np') return all.filter((c) => c.status.startsWith('np'));
+    return all;
+  }, [npFullCount, npFracValue, project]);
+
+  const byProjectLive = useMemo(() => BY_PROJECT
+    .map((p) => p.name === 'NainarPalayam' ? { ...p, value: parseFloat(npTotalTons.toFixed(4)) } : p)
+    .filter((p) => project === 'all' || (project === 'np' ? p.name === 'NainarPalayam' : p.name !== 'NainarPalayam'))
+  , [npTotalTons, project]);
+
+  const bySocietiesLive = useMemo(() => BY_SOCIETIES
+    .map((s) => s.name === 'NainarPalayam' ? { ...s, value: parseFloat(npTotalTons.toFixed(4)) } : s)
+    .filter((s) => project === 'all' || (project === 'np' ? s.name === 'NainarPalayam' : s.name !== 'NainarPalayam'))
+  , [npTotalTons, project]);
+
+  const topLocationsLive = useMemo(() => TOP_LOCATIONS
+    .map((l) => l.name === 'NainarPalayam, TN' ? { ...l, value: parseFloat(npTotalTons.toFixed(4)) } : l)
+    .filter((l) => project === 'all' || (project === 'np' ? l.name === 'NainarPalayam, TN' : l.name !== 'NainarPalayam, TN'))
+  , [npTotalTons, project]);
 
   if (!cowLoaded) return <DashboardSkeleton />;
 
@@ -1051,13 +1114,14 @@ export default function DashboardPage() {
     setTimeout(() => { setSelectedCubeId(null); setIsPanelClosing(false); }, 350);
   }
 
-  const selectedCube = GRID.find((c) => c.id === selectedCubeId) ?? null;
+  const selectedCube = gridLive.find((c) => c.id === selectedCubeId) ?? null;
   const offsetDetails = selectedCube ? deriveOffsetDetails(selectedCube) : null;
   const panelBg = offsetDetails?.isMM ? C.mm_full.bg : C.np_full.bg;
   const panelAccent = offsetDetails?.isMM ? C.mm_acc.bg : C.np_acc.bg;
 
   // Legend order matches the spreadsheet exactly
-  const LEGEND_ORDER: OffsetStatus[] = ['mm_full', 'mm_acc', 'mm_frac', 'np_full', 'np_acc', 'np_frac'];
+  const LEGEND_ORDER: OffsetStatus[] = ['mm_full', 'mm_acc', 'mm_frac', 'np_full', 'np_acc', 'np_frac']
+    .filter((s) => project === 'all' || s.startsWith(project)) as OffsetStatus[];
 
   return (
     <div className="flex flex-col lg:flex-row gap-5 items-start">
@@ -1073,18 +1137,19 @@ export default function DashboardPage() {
                 <Info size={15} />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:gap-3">
-              {LEGEND_ORDER.map((s) => <LegendItem key={s} status={s} />)}
-            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:gap-3">
+            {LEGEND_ORDER.map((s) => <LegendItem key={s} status={s} />)}
           </div>
           <p className="text-xs text-gray-400">
             <span className="font-medium text-gray-600">Full</span>, <span className="font-medium text-gray-600">Accumulating</span>, <span className="font-medium text-gray-600">Fractional</span>
-            <span className="hidden sm:inline"> &nbsp;·&nbsp; 609 cubes combine to form a full offset · Accumulating: &gt; 300 cubes · Fractional: ≤ 300 cubes</span>
-            <span className="sm:hidden"> &nbsp;·&nbsp; 609 cubes = 1 tCO₂e offset</span>
+            <span className="hidden sm:inline"> &nbsp;·&nbsp; {Math.round(COW_DAYS_PER_CC)} cubes combine to form a full offset · Accumulating: &gt; {Math.round(COW_DAYS_PER_CC / 2)} cubes · Fractional: ≤ {Math.round(COW_DAYS_PER_CC / 2)} cubes</span>
+            <span className="sm:hidden"> &nbsp;·&nbsp; {Math.round(COW_DAYS_PER_CC)} cubes = 1 tCO₂e offset</span>
           </p>
         </div>
 
-        {/* Today's Fractional Flow */}
+        {/* Today's Fractional Flow (Milky Mist MCCs only) */}
+        {project !== 'np' && (
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <div className="flex items-baseline justify-between mb-3">
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Today's Fractional Flow</p>
@@ -1127,11 +1192,12 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* Offset Matrix Grid */}
         <div className="bg-white rounded-xl border border-gray-100 p-2 sm:p-4" style={{ overflow: 'visible' }}>
           <div className={`offset-matrix-grid${selectedCubeId ? ' panel-open' : ''}`} style={{ overflow: 'visible' }}>
-            {GRID.map((cube) => (
+            {gridLive.map((cube) => (
               <OffsetCube
                 key={cube.id}
                 cube={cube}
@@ -1145,9 +1211,11 @@ export default function DashboardPage() {
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { iconColor: '#7c3aed', bgColor: '#f5f3ff', value: (0.6 / 365).toFixed(4), label: 'Fractional Credit (1 Cow·Day)' },
-            { iconColor: '#0f766e', bgColor: '#f0fdfa', value: '1.0000', label: '= 1 Full Offset (609 Cow·Days)' },
-            { iconColor: '#b45309', bgColor: '#fffbeb', value: (FULL_CC_TOTAL + FRAC_CC_TOTAL / COW_DAYS_PER_CC).toFixed(4), label: `All MCCs — ${FULL_CC_TOTAL} Full + ${FRAC_CC_TOTAL} Frac CC` },
+            { iconColor: '#7c3aed', bgColor: '#f5f3ff', value: (0.68 / 365).toFixed(4), label: 'Fractional Credit (1 Cow·Day)' },
+            { iconColor: '#0f766e', bgColor: '#f0fdfa', value: '1.0000', label: `= 1 Full Offset (${Math.round(COW_DAYS_PER_CC)} Cow·Days)` },
+            project === 'np'
+              ? { iconColor: '#9A60A8', bgColor: '#faf5fb', value: npTotalTons.toFixed(4), label: `NainarPalayam — ${npFullCount} Full CC` }
+              : { iconColor: '#b45309', bgColor: '#fffbeb', value: (FULL_CC_TOTAL + FRAC_CC_TOTAL / COW_DAYS_PER_CC).toFixed(4), label: `All MCCs — ${FULL_CC_TOTAL} Full + ${FRAC_CC_TOTAL} Frac CC` },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -1169,16 +1237,17 @@ export default function DashboardPage() {
           <div className="space-y-4">
 
             {/* By Project */}
+            {project === 'all' && (
             <div className="bg-white rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-2">By Project</p>
               <ResponsiveContainer width="100%" height={110}>
                 <PieChart>
                   <Pie
-                    data={BY_PROJECT} cx="50%" cy="50%"
+                    data={byProjectLive} cx="50%" cy="50%"
                     innerRadius={30} outerRadius={50}
                     dataKey="value" paddingAngle={2}
                   >
-                    {BY_PROJECT.map((e, i) => <Cell key={i} fill={e.color} />)}
+                    {byProjectLive.map((e, i) => <Cell key={i} fill={e.color} />)}
                   </Pie>
                   <RechartTooltip
                     contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #f3f4f6' }}
@@ -1187,7 +1256,7 @@ export default function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-1 space-y-1">
-                {BY_PROJECT.map((p, i) => (
+                {byProjectLive.map((p, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
@@ -1198,12 +1267,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* By Societies */}
             <div className="bg-white rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-700 mb-3">By Society</p>
               <ResponsiveContainer width="100%" height={192}>
-                <BarChart data={BY_SOCIETIES} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={bySocietiesLive} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
                   <XAxis type="number" hide />
                   <YAxis
                     type="category"
@@ -1218,7 +1288,7 @@ export default function DashboardPage() {
                     formatter={(v) => [`${Number(v).toFixed(4)} tCO₂e`, '']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                    {BY_SOCIETIES.map((s, i) => <Cell key={i} fill={s.color} />)}
+                    {bySocietiesLive.map((s, i) => <Cell key={i} fill={s.color} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -1229,16 +1299,16 @@ export default function DashboardPage() {
           {/* By Location */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-700">By Location (All 8)</p>
+              <p className="text-xs font-semibold text-gray-700">By Location ({topLocationsLive.length})</p>
               <button onClick={() => setMapEnlarged({})} className="hidden sm:block text-gray-400 hover:text-teal-600 transition-colors" title="Enlarge map">
                 <Maximize2 size={13} />
               </button>
             </div>
             <div className="h-52 mb-2 rounded-lg overflow-hidden" style={{ isolation: 'isolate' }}>
-              <InlineLocationMap />
+              <InlineLocationMap locations={topLocationsLive} />
             </div>
             <div className="space-y-0.5">
-              {TOP_LOCATIONS.map((loc, i) => (
+              {topLocationsLive.map((loc, i) => (
                 <div key={i} className="flex items-center justify-between text-[10px]">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
@@ -1250,7 +1320,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Monthly Status */}
+          {/* Monthly Status (Milky Mist MCCs only) */}
+          {project !== 'np' && (
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <p className="text-xs font-semibold text-gray-700 mb-3">Monthly Status</p>
             <div className="grid grid-cols-4 gap-2">
@@ -1287,6 +1358,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-gray-100" /><span>Pending</span></div>
             </div>
           </div>
+          )}
 
         </div>
       </div>
@@ -1428,19 +1500,19 @@ export default function DashboardPage() {
         <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setMapEnlarged(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <p className="text-sm font-bold text-gray-900">{mapEnlarged?.lat !== undefined ? 'Society Location' : 'By Location (All 8)'}</p>
+              <p className="text-sm font-bold text-gray-900">{mapEnlarged?.lat !== undefined ? 'Society Location' : `By Location (${topLocationsLive.length})`}</p>
               <button onClick={() => setMapEnlarged(null)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={16} />
               </button>
             </div>
             <div className="flex flex-col sm:flex-row">
               <div className="flex-1" style={{ minHeight: 560 }}>
-                <EnlargedLocationMap highlight={mapEnlarged?.lat !== undefined ? { lat: mapEnlarged.lat!, lon: mapEnlarged.lon! } : undefined} />
+                <EnlargedLocationMap locations={topLocationsLive} highlight={mapEnlarged?.lat !== undefined ? { lat: mapEnlarged.lat!, lon: mapEnlarged.lon! } : undefined} />
               </div>
               <div className="sm:w-56 border-t sm:border-t-0 sm:border-l border-gray-100 px-5 py-4 flex flex-col justify-center space-y-3">
                 {(mapEnlarged?.lat !== undefined
-                  ? TOP_LOCATIONS.filter((loc) => Math.abs(loc.lat - mapEnlarged.lat!) < 0.01 && Math.abs(loc.lon - mapEnlarged.lon!) < 0.01)
-                  : TOP_LOCATIONS
+                  ? topLocationsLive.filter((loc) => Math.abs(loc.lat - mapEnlarged.lat!) < 0.01 && Math.abs(loc.lon - mapEnlarged.lon!) < 0.01)
+                  : topLocationsLive
                 ).map((loc, i) => (
                   <div key={i} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">

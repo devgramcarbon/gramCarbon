@@ -11,6 +11,7 @@ export interface IFarmer {
   animalType: 'Cow' | 'Buffalo' | 'Mixed' | 'Other';
   gender?: 'Male' | 'Female' | 'Other';
   distributorPhone?: string;
+  project: 'np' | 'mm';
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +33,7 @@ const FarmerSchema = new Schema<IFarmer>(
     },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     distributorPhone: { type: String },
+    project: { type: String, enum: ['np', 'mm'], default: 'np' },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -7,6 +7,7 @@ export interface IDistributor {
   address?: string;
   district?: string;
   state?: string;
+  project: 'np' | 'mm';
   createdAt: Date;
 }
 
@@ -17,6 +18,7 @@ const DistributorSchema = new Schema<IDistributor>({
   address: { type: String },
   district: { type: String },
   state: { type: String },
+  project: { type: String, enum: ['np', 'mm'], default: 'np' },
   createdAt: { type: Date, default: Date.now },
 });
 

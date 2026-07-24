@@ -9,7 +9,7 @@ import {
   MessageSquare, FileText, BarChart3, Settings, Shield, Terminal,
   LogOut, X, Building2, LayoutList, ClipboardList, Factory, FolderOpen,
   Truck, Wallet, CheckCircle2, FileCheck2, Receipt, CalendarClock,
-  CreditCard, Archive, type LucideIcon,
+  CreditCard, Archive, Leaf, TreePine, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -28,6 +28,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard/distributors', label: 'Distributors', icon: Users },
   { href: '/dashboard/farmers', label: 'Farmers', icon: UserCheck },
   { href: '/dashboard/stock', label: 'Stock', icon: Package },
+  { href: '/dashboard/offset-stats', label: 'Offset Stats', icon: Leaf },
+  { href: '/dashboard/impact', label: 'Environmental Impact', icon: TreePine },
   { href: '/dashboard/sales', label: 'Sales', icon: ShoppingCart },
   { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/templates', label: 'Templates', icon: FileText, adminOnly: true },
@@ -96,7 +98,7 @@ export default function Sidebar({ user, mobileOpen = false, setMobileOpen }: Sid
 
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto no-scrollbar">
         {items.map((item) => {
           const active = isActive(item);
           const Icon = item.icon;
@@ -105,14 +107,14 @@ export default function Sidebar({ user, mobileOpen = false, setMobileOpen }: Sid
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen?.(false)}
-              className={`relative flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 ${
+              className={`relative flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all duration-150 ${
                 active
                   ? 'bg-teal-50 text-teal-700 font-semibold'
                   : 'text-gray-500 font-normal hover:bg-gray-50 hover:text-gray-800'
               }`}
             >
-              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-[60%] bg-teal-500 rounded-r-full shadow-[0_0_8px_rgba(13,148,136,0.45)]" />}
-              <Icon size={15} className="flex-shrink-0" />
+              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[55%] bg-teal-500 rounded-r-full shadow-[0_0_8px_rgba(13,148,136,0.45)]" />}
+              <Icon size={14} className="flex-shrink-0" />
               <span>{item.label}</span>
             </Link>
           );

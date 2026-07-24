@@ -9,6 +9,10 @@
     "lint": "next lint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "seed:business-contacts": "tsx --env-file=.env.local scripts/seed-business-contacts.ts",
+    "backup-db": "tsx --env-file=.env.local scripts/backup-db.ts",
+    "wipe-db": "tsx --env-file=.env.local scripts/wipe-db.ts",
+    "import:carbon-csv": "tsx --env-file=.env.local scripts/import-carbon-csv.ts",
+    "update:offset-formula": "tsx --env-file=.env.local scripts/update-offset-formula.ts",
     "reset-password": "tsx --env-file=.env.local scripts/reset-password.ts",
     "type-check": "tsc --noEmit"
   },

@@ -47,6 +47,7 @@ export const createFarmerSchema = z.object({
   animalType: z.enum(['Cow', 'Buffalo', 'Mixed', 'Other']).optional(),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   distributorPhone: z.string().optional(),
+  project: z.enum(['np', 'mm']).optional(),
 });
 
 function normalizeIndianPhone(raw: string): string {
@@ -69,6 +70,7 @@ export const createDistributorSchema = z.object({
   address: z.string().optional(),
   district: z.string().optional(),
   state: z.string().optional(),
+  project: z.enum(['np', 'mm']).optional(),
 });
 
 export { normalizeIndianPhone };

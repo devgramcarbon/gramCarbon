@@ -10,6 +10,7 @@ import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
 import { useToast } from '../../components/Toaster';
 import { useSocket } from '../../components/SocketProvider';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 interface Farmer { _id: string; farmerId: string; name: string; mobile: string; village?: string; district?: string; state?: string; animalCount?: number; animalType?: string; gender?: string; createdAt?: string }
 interface Pagination { page: number; pages: number; total: number; limit: number }
@@ -17,6 +18,7 @@ interface Pagination { page: number; pages: number; total: number; limit: number
 export default function FarmersPage() {
   const { toast } = useToast() ?? {};
   const { subscribe } = useSocket() ?? {};
+  const { project } = useProjectFilter();
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,15 +27,16 @@ export default function FarmersPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', mobile: '', village: '', district: '', state: '', animalCount: '', animalType: 'Cow', gender: '' });
+  const [formProject, setFormProject] = useState<'np' | 'mm'>(project === 'np' || project === 'mm' ? project : 'np');
 
   const fetchFarmers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<{ success: boolean; data: { farmers: Farmer[]; pagination: Pagination } }>('/api/farmers', { params: { page, search, limit: 20 } });
+      const { data } = await axios.get<{ success: boolean; data: { farmers: Farmer[]; pagination: Pagination } }>('/api/farmers', { params: { page, search, limit: 20, project: project !== 'all' ? project : undefined } });
       if (data.success) { setFarmers(data.data.farmers); setPagination(data.data.pagination); }
     } catch { toast?.('Failed to load farmers', 'error'); }
     finally { setLoading(false); }
-  }, [page, search, toast]);
+  }, [page, search, toast, project]);
 
   useEffect(() => { fetchFarmers(); }, [fetchFarmers]);
 
@@ -50,10 +53,11 @@ export default function FarmersPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.post('/api/farmers', { ...form, animalCount: Number(form.animalCount) || 0 });
+      await axios.post('/api/farmers', { ...form, animalCount: Number(form.animalCount) || 0, project: formProject });
       toast?.('Farmer registered successfully', 'success');
       setShowModal(false);
       setForm({ name: '', mobile: '', village: '', district: '', state: '', animalCount: '', animalType: 'Cow', gender: '' });
+      setFormProject(project === 'np' || project === 'mm' ? project : 'np');
       fetchFarmers();
     } catch (err) {
       toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to register farmer', 'error');
@@ -107,6 +111,17 @@ export default function FarmersPage() {
         </>}
       >
         <form id="farmer-form" onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input type="radio" name="add-farmer-project" checked={formProject === 'np'} onChange={() => setFormProject('np')} /> NainarPalayam
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input type="radio" name="add-farmer-project" checked={formProject === 'mm'} onChange={() => setFormProject('mm')} /> Milky Mist
+              </label>
+            </div>
+          </div>
           {textFields.map((field) => (
             <div key={field.key}>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>

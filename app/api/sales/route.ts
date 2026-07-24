@@ -4,6 +4,7 @@ import Sale from '@/lib/models/Sale';
 import Stock from '@/lib/models/Stock';
 import type { IStock } from '@/lib/models/Stock';
 import Farmer from '@/lib/models/Farmer';
+import Distributor from '@/lib/models/Distributor';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseBody, recordSaleSchema } from '@/lib/validations';
 import { logAudit, getAuditContext } from '@/lib/audit';
@@ -23,10 +24,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const distributor = searchParams.get('distributor');
+  const project = searchParams.get('project');
 
   const query: Record<string, unknown> = {};
   if (search) query.$or = [{ farmerName: new RegExp(search, 'i') }, { batchNo: new RegExp(search, 'i') }];
   if (distributor) query.distributorPhone = distributor;
+  if (project === 'np' || project === 'mm') {
+    const distributors = await Distributor.find({ project }).select('phone').lean();
+    query.distributorPhone = { $in: distributors.map((d) => d.phone) };
+  }
   if (from || to) {
     const saleDate: Record<string, Date> = {};
     if (from) saleDate.$gte = new Date(from);

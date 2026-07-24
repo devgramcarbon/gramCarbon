@@ -1,0 +1,58 @@
+[
+  {
+    "_id": "6a525a765596f754111b826b",
+    "department": "PRODUCTION",
+    "org": "MILKY_MIST",
+    "__v": 0,
+    "createdAt": "2026-07-11T15:00:06.598Z",
+    "isActive": true,
+    "name": "MM Prod",
+    "phone": "917907247909",
+    "updatedAt": "2026-07-11T15:28:32.725Z"
+  },
+  {
+    "_id": "6a525a765596f754111b826c",
+    "department": "ACCOUNTS",
+    "org": "MILKY_MIST",
+    "__v": 0,
+    "createdAt": "2026-07-11T15:00:06.921Z",
+    "isActive": true,
+    "name": "MM Acc",
+    "phone": "917907247909",
+    "updatedAt": "2026-07-11T15:28:33.024Z"
+  },
+  {
+    "_id": "6a525a765596f754111b826d",
+    "org": "ZEROEARTH",
+    "department": "PRODUCTION",
+    "__v": 0,
+    "createdAt": "2026-07-11T15:00:06.961Z",
+    "isActive": true,
+    "name": "ZE Prod",
+    "phone": "917907247909",
+    "updatedAt": "2026-07-11T15:28:33.068Z"
+  },
+  {
+    "_id": "6a525a765596f754111b826e",
+    "department": "ACCOUNTS",
+    "org": "ZEROEARTH",
+    "__v": 0,
+    "createdAt": "2026-07-11T15:00:07.004Z",
+    "isActive": true,
+    "name": "ZE Acc",
+    "phone": "917907247909",
+    "updatedAt": "2026-07-11T15:28:33.111Z",
+    "userId": "6a55bd6311b0d46dcc63725b"
+  },
+  {
+    "_id": "6a55b94811b0d46dcc6371fb",
+    "name": "ZE Admin",
+    "org": "ZEROEARTH",
+    "department": "ADMINISTRATION",
+    "phone": "917907247909",
+    "isActive": true,
+    "createdAt": "2026-07-14T04:21:28.071Z",
+    "__v": 0,
+    "userId": "6a55b94811b0d46dcc6371fd"
+  }
+]

@@ -22,15 +22,23 @@ export async function GET(request: NextRequest): Promise<NextResponse | Response
     const to = searchParams.get('to') ? new Date(searchParams.get('to')!) : new Date();
     const format = searchParams.get('format') || 'json';
     const distributorPhone = searchParams.get('distributor');
+    const project = searchParams.get('project');
+    const projectFilter = project === 'np' || project === 'mm' ? { project } : {};
 
     const dateFilter: Record<string, unknown> = { saleDate: { $gte: from, $lte: to } };
     if (distributorPhone) dateFilter.distributorPhone = distributorPhone;
 
-    const [sales, distributors, farmers, stocks] = await Promise.all([
+    const distributors = await Distributor.find(projectFilter).lean();
+    if (project === 'np' || project === 'mm') {
+      dateFilter.distributorPhone = { $in: distributors.map((d) => d.phone) };
+    }
+
+    const [sales, farmers, stocks] = await Promise.all([
       Sale.find(dateFilter).sort({ saleDate: -1 }).lean(),
-      Distributor.find().lean(),
-      Farmer.find({ isActive: true }).lean(),
-      Stock.find().lean(),
+      Farmer.find({ isActive: true, ...projectFilter }).lean(),
+      Stock.find(
+        project === 'np' || project === 'mm' ? { distributorPhone: { $in: distributors.map((d) => d.phone) } } : {}
+      ).lean(),
     ]);
 
     const stockMap = Object.fromEntries(stocks.map((s) => [s.distributorPhone, s]));

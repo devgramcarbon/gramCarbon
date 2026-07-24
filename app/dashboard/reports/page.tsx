@@ -6,6 +6,7 @@ import { BarChart3, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useToast } from '../../components/Toaster';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 const PERIOD_PRESETS = [
   { label: 'Last 7 Days', days: 7 },
@@ -20,6 +21,7 @@ interface ReportData { summary: ReportSummary; byDistributor: ByDistributor[] }
 
 export default function ReportsPage() {
   const { toast } = useToast() ?? {};
+  const { project } = useProjectFilter();
   const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]; });
   const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,7 @@ export default function ReportsPage() {
   const generateReport = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<{ success: boolean; data: ReportData }>('/api/reports', { params: { from: fromDate, to: toDate } });
+      const { data } = await axios.get<{ success: boolean; data: ReportData }>('/api/reports', { params: { from: fromDate, to: toDate, project: project !== 'all' ? project : undefined } });
       if (data.success) setReportData(data.data);
     } catch { toast?.('Failed to generate report', 'error'); }
     finally { setLoading(false); }

@@ -7,9 +7,10 @@ import PageHeader from '../../components/PageHeader';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import Modal from '../../components/Modal';
 import { useToast } from '../../components/Toaster';
+import { useProjectFilter } from '../ProjectFilterContext';
 import axios from 'axios';
 
-interface Template { id: string; name: string; category: string; message: string }
+interface Template { id: string; name: string; category: string; message: string; project?: 'np' | 'mm' }
 
 const BUILT_IN_TEMPLATES: Template[] = [
   { id: 't1', name: 'Stock Received', category: 'Stock', message: '📦 Dear {{name}},\n\nYour stock of {{quantity}}kg (Batch: {{batch}}) has been received and updated.\n\nCurrent Balance: {{balance}}kg\n\n— gramCarbon Console Team' },
@@ -23,7 +24,9 @@ const categoryColors: Record<string, string> = { Stock: 'bg-blue-100 text-blue-7
 
 export default function TemplatesPage() {
   const { toast } = useToast() ?? {};
+  const { project } = useProjectFilter();
   const [templates] = useState<Template[]>(BUILT_IN_TEMPLATES);
+  const visibleTemplates = templates.filter((t) => !t.project || project === 'all' || t.project === project);
   const [showSendModal, setShowSendModal] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(null);
   const [phone, setPhone] = useState('');
@@ -74,7 +77,7 @@ export default function TemplatesPage() {
       <Breadcrumbs items={[{ label: 'Templates', href: '/dashboard/templates' }]} />
       <PageHeader title="Message Templates" description="Pre-built templates for common WhatsApp messages" />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {templates.map((t) => {
+        {visibleTemplates.map((t) => {
           const tVars = extractVars(t.message);
           return (
             <div key={t.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-3">

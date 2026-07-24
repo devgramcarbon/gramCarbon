@@ -10,6 +10,7 @@ import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
 import { useToast } from '../../components/Toaster';
 import { useSocket } from '../../components/SocketProvider';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 interface StockInfo { receivedKg: number; soldKg: number }
 interface Distributor { _id: string; name: string; phone: string; stock?: StockInfo }
@@ -17,6 +18,7 @@ interface Distributor { _id: string; name: string; phone: string; stock?: StockI
 export default function StockPage() {
   const { toast } = useToast() ?? {};
   const socket = useSocket();
+  const { project } = useProjectFilter();
   const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -27,7 +29,7 @@ export default function StockPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<{ success: boolean; data: { distributors: Distributor[] } }>('/api/distributors', { params: { limit: 100 } });
+      const { data } = await axios.get<{ success: boolean; data: { distributors: Distributor[] } }>('/api/distributors', { params: { limit: 100, project: project !== 'all' ? project : undefined } });
       if (data.success) {
         const dists = data.data.distributors;
         setDistributors(dists);
@@ -37,7 +39,7 @@ export default function StockPage() {
       }
     } catch { toast?.('Failed to load stock data', 'error'); }
     finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, project]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (!socket) return; return socket.subscribe('stock_updated', fetchData); }, [socket, fetchData]);

@@ -3,7 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 export interface ISettings {
   key: string;
   value?: unknown;
-  category: 'whatsapp' | 'system' | 'business' | 'notifications';
+  category: 'whatsapp' | 'system' | 'business' | 'notifications' | 'carbon';
   label?: string;
   description?: string;
   isEncrypted: boolean;
@@ -17,7 +17,7 @@ const SettingsSchema = new Schema<ISettings>(
     value: mongoose.Schema.Types.Mixed,
     category: {
       type: String,
-      enum: ['whatsapp', 'system', 'business', 'notifications'],
+      enum: ['whatsapp', 'system', 'business', 'notifications', 'carbon'],
       default: 'system',
     },
     label: String,

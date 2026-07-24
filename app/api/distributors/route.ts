@@ -19,10 +19,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const search = searchParams.get('search') || '';
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
   const limit = Math.min(100, parseInt(searchParams.get('limit') || '20'));
+  const project = searchParams.get('project');
 
-  const query = search
-    ? { $or: [{ name: new RegExp(search, 'i') }, { phone: new RegExp(search, 'i') }] }
-    : {};
+  const query: Record<string, unknown> = {};
+  if (search) query.$or = [{ name: new RegExp(search, 'i') }, { phone: new RegExp(search, 'i') }];
+  if (project === 'np' || project === 'mm') query.project = project;
 
   const [distributors, total] = await Promise.all([
     Distributor.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),

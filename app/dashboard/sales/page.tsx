@@ -10,6 +10,7 @@ import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
 import { useToast } from '../../components/Toaster';
 import { useSocket } from '../../components/SocketProvider';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 interface Sale { _id: string; distributorPhone: string; farmerName: string; cowCount: number; qtyKg: number; batchNo?: string; saleDate?: string }
 interface Pagination { page: number; pages: number; total: number; limit: number }
@@ -18,6 +19,7 @@ interface FarmerLookup { status: 'idle' | 'loading' | 'found' | 'not_found'; nam
 export default function SalesPage() {
   const { toast } = useToast() ?? {};
   const socket = useSocket();
+  const { project } = useProjectFilter();
   const [sales, setSales] = useState<Sale[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,11 +35,11 @@ export default function SalesPage() {
   const fetchSales = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<{ success: boolean; data: { sales: Sale[]; pagination: Pagination } }>('/api/sales', { params: { page, search, from: fromDate, to: toDate, limit: 20 } });
+      const { data } = await axios.get<{ success: boolean; data: { sales: Sale[]; pagination: Pagination } }>('/api/sales', { params: { page, search, from: fromDate, to: toDate, limit: 20, project: project !== 'all' ? project : undefined } });
       if (data.success) { setSales(data.data.sales); setPagination(data.data.pagination); }
     } catch { toast?.('Failed to load sales', 'error'); }
     finally { setLoading(false); }
-  }, [page, search, fromDate, toDate, toast]);
+  }, [page, search, fromDate, toDate, toast, project]);
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
   useEffect(() => { if (!socket) return; return socket.subscribe('sale_recorded', fetchSales); }, [socket, fetchSales]);

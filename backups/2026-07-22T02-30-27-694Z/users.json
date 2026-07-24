@@ -1,0 +1,38 @@
+[
+  {
+    "_id": "6a5257196ef5198d89bc8d0c",
+    "name": "Super Admin",
+    "email": "admin@gramcarbon.company",
+    "password": "$2b$12$.ZbQdEfyej3WilW5Bd91nu6yo18CK/vxCclfDat234Br3aR2pBWt.",
+    "role": "SUPER_ADMIN",
+    "isActive": true,
+    "createdAt": "2026-07-11T14:45:45.051Z",
+    "updatedAt": "2026-07-15T02:09:02.312Z",
+    "__v": 0,
+    "lastLogin": "2026-07-15T02:09:02.311Z"
+  },
+  {
+    "_id": "6a55b94811b0d46dcc6371fd",
+    "name": "ZE Admin",
+    "email": "admin@gmail.com",
+    "password": "$2b$12$nf1z/Iwrwp8QOdnF5gdy9OYZJvhAYo9uGcvCUovun8UB3mobq0m6.",
+    "role": "ZE_ADMIN",
+    "isActive": true,
+    "createdAt": "2026-07-14T04:21:28.156Z",
+    "updatedAt": "2026-07-14T04:54:36.322Z",
+    "__v": 0,
+    "lastLogin": "2026-07-14T04:54:36.321Z"
+  },
+  {
+    "_id": "6a55bd6311b0d46dcc63725b",
+    "name": "ZE Acc",
+    "email": "accounts@gmail.com",
+    "password": "$2b$12$M0pgDVbwZmon34.8KIu59.1AxoC4Ml72.PCMT8QA2pUZsJV1mdNNG",
+    "role": "ZE_ACC",
+    "isActive": true,
+    "createdAt": "2026-07-14T04:38:59.293Z",
+    "updatedAt": "2026-07-14T04:59:01.823Z",
+    "__v": 0,
+    "lastLogin": "2026-07-14T04:59:01.823Z"
+  }
+]

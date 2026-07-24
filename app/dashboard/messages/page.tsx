@@ -7,6 +7,7 @@ import { Send, Phone, Loader2, Users, UserCheck, Hash } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useToast } from '../../components/Toaster';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 const MODES = [
   { value: 'text', label: 'Text / PDF' },
@@ -28,6 +29,7 @@ interface FormState { phone: string; mode: string; message: string; buttons: str
 
 export default function MessagesPage() {
   const { toast } = useToast() ?? {};
+  const { project } = useProjectFilter();
   const [form, setForm] = useState<FormState>({ phone: '', mode: 'text', message: '', buttons: ['', '', ''], listItems: [''], linkUrl: '', linkTitle: '', pollOptions: ['', ''], pollMultiple: false });
   const [sending, setSending] = useState(false);
   const [recipientMode, setRecipientMode] = useState<'number' | 'all' | 'select'>('number');
@@ -39,12 +41,12 @@ export default function MessagesPage() {
   useEffect(() => {
     if (recipientMode === 'all' || recipientMode === 'select') {
       setLoadingDist(true);
-      axios.get('/api/distributors?limit=100')
+      axios.get('/api/distributors', { params: { limit: 100, project: project !== 'all' ? project : undefined } })
         .then((res) => setDistributors(res.data.data?.distributors || []))
         .catch(() => toast?.('Failed to load distributors', 'error'))
         .finally(() => setLoadingDist(false));
     }
-  }, [recipientMode]);
+  }, [recipientMode, project]);
 
   const filteredDist = distributors.filter((d) =>
     d.name.toLowerCase().includes(distSearch.toLowerCase()) || d.phone.includes(distSearch)

@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "6a52fc2a932ab8d90742db12",
+    "type": "INFO",
+    "title": "Daily Summary",
+    "message": "Yesterday: 0 sales recorded, 0kg distributed.",
+    "isRead": false,
+    "userId": null,
+    "createdAt": "2026-07-12T02:30:02.039Z",
+    "updatedAt": "2026-07-12T02:30:02.039Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a56f0a971a459da6d9960b4",
+    "type": "INFO",
+    "title": "Daily Summary",
+    "message": "Yesterday: 0 sales recorded, 0kg distributed.",
+    "isRead": false,
+    "userId": null,
+    "createdAt": "2026-07-15T02:30:01.572Z",
+    "updatedAt": "2026-07-15T02:30:01.572Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a602b2993dc59a5fd5644aa",
+    "type": "INFO",
+    "title": "Daily Summary",
+    "message": "Yesterday: 0 sales recorded, 0kg distributed.",
+    "isRead": false,
+    "userId": null,
+    "createdAt": "2026-07-22T02:30:01.888Z",
+    "updatedAt": "2026-07-22T02:30:01.888Z",
+    "__v": 0
+  }
+]

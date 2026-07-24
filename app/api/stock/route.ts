@@ -17,8 +17,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   await connectDB();
   const { searchParams } = new URL(request.url);
   const phone = searchParams.get('phone');
+  const project = searchParams.get('project');
 
-  const query = phone ? { distributorPhone: phone } : {};
+  const query: Record<string, unknown> = phone ? { distributorPhone: phone } : {};
+  if (project === 'np' || project === 'mm') {
+    const distributors = await Distributor.find({ project }).select('phone').lean();
+    query.distributorPhone = { $in: distributors.map((d) => d.phone) };
+  }
   const stocks = await Stock.find(query).lean();
   return success(stocks);
 }

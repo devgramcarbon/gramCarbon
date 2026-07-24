@@ -20,6 +20,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const search = searchParams.get('search') || '';
   const district = searchParams.get('district') || '';
   const state = searchParams.get('state') || '';
+  const project = searchParams.get('project');
 
   const query: Record<string, unknown> = { isActive: true };
   if (search) {
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
   if (district) query.district = new RegExp(district, 'i');
   if (state) query.state = new RegExp(state, 'i');
+  if (project === 'np' || project === 'mm') query.project = project;
 
   const [farmers, total] = await Promise.all([
     Farmer.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),

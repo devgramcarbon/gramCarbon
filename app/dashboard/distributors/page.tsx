@@ -10,6 +10,7 @@ import DataTable from '../../components/DataTable';
 import Modal from '../../components/Modal';
 import { useToast } from '../../components/Toaster';
 import { useSocket } from '../../components/SocketProvider';
+import { useProjectFilter } from '../ProjectFilterContext';
 
 interface StockInfo { receivedKg: number; soldKg: number }
 interface Distributor { _id: string; name: string; phone: string; email?: string; district?: string; state?: string; createdAt?: string; stock?: StockInfo }
@@ -20,6 +21,7 @@ const EMPTY_FORM = { phone: '', name: '', email: '', district: '', state: '' };
 export default function DistributorsPage() {
   const { toast } = useToast() ?? {};
   const socket = useSocket();
+  const { project } = useProjectFilter();
   const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,7 @@ export default function DistributorsPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [formProject, setFormProject] = useState<'np' | 'mm'>(project === 'np' || project === 'mm' ? project : 'np');
   const [saving, setSaving] = useState(false);
 
   const [editTarget, setEditTarget] = useState<Distributor | null>(null);
@@ -39,11 +42,11 @@ export default function DistributorsPage() {
   const fetchDistributors = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get<{ success: boolean; data: { distributors: Distributor[]; pagination: Pagination } }>('/api/distributors', { params: { page, search, limit: 20 } });
+      const { data } = await axios.get<{ success: boolean; data: { distributors: Distributor[]; pagination: Pagination } }>('/api/distributors', { params: { page, search, limit: 20, project: project !== 'all' ? project : undefined } });
       if (data.success) { setDistributors(data.data.distributors); setPagination(data.data.pagination); }
     } catch { toast?.('Failed to load distributors', 'error'); }
     finally { setLoading(false); }
-  }, [page, search, toast]);
+  }, [page, search, toast, project]);
 
   useEffect(() => { fetchDistributors(); }, [fetchDistributors]);
   useEffect(() => { if (!socket) return; return socket.subscribe('dashboard_updated', fetchDistributors); }, [socket, fetchDistributors]);
@@ -52,10 +55,11 @@ export default function DistributorsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.post('/api/distributors', form);
+      await axios.post('/api/distributors', { ...form, project: formProject });
       toast?.('Distributor added successfully', 'success');
       setShowModal(false);
       setForm(EMPTY_FORM);
+      setFormProject(project === 'np' || project === 'mm' ? project : 'np');
       fetchDistributors();
     } catch (err) {
       toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to add distributor', 'error');
@@ -150,6 +154,17 @@ export default function DistributorsPage() {
         </>}
       >
         <form id="add-dist-form" onSubmit={handleAdd} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input type="radio" name="add-dist-project" checked={formProject === 'np'} onChange={() => setFormProject('np')} /> NainarPalayam
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input type="radio" name="add-dist-project" checked={formProject === 'mm'} onChange={() => setFormProject('mm')} /> Milky Mist
+              </label>
+            </div>
+          </div>
           {FORM_FIELDS.map((field) => (
             <div key={field.key}>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>
