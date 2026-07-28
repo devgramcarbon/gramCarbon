@@ -3,14 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
-import { Plus, RefreshCw, Upload, FileText, Send, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Plus, RefreshCw, Upload, FileText, Send, ExternalLink, CheckCircle2, UploadCloud } from 'lucide-react';
 import PageHeader from '../../../components/PageHeader';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
 import { useToast } from '../../../components/Toaster';
 
-type Status = 'REQUESTED' | 'RECEIVED' | 'ACKNOWLEDGED';
+type Status =
+  | 'REQUESTED' | 'RECEIVED' | 'ACKNOWLEDGED' | 'MM_ACK_PENDING'
+  | 'PRODUCTION_STARTED' | 'PRODUCTION_IN_PROGRESS' | 'PRODUCTION_COMPLETED'
+  | 'QAQC_REQUESTED' | 'QAQC_READY' | 'WEIGHT_REQUESTED' | 'WEIGHBRIDGE_READY'
+  | 'WEIGHBRIDGE_PAID' | 'DISPATCHED' | 'INVOICE_APPROVED' | 'PAYMENT_REQUESTED' | 'PAYMENT_DONE';
 
 interface PurchaseOrder {
   _id: string;
@@ -31,6 +35,19 @@ const STATUS_LABELS: Record<Status, { label: string; className: string }> = {
   REQUESTED: { label: 'Requested', className: 'bg-amber-100 text-amber-700' },
   RECEIVED: { label: 'Received', className: 'bg-blue-100 text-blue-700' },
   ACKNOWLEDGED: { label: 'Acknowledged', className: 'bg-green-100 text-green-700' },
+  MM_ACK_PENDING: { label: 'Awaiting MM Acknowledgement', className: 'bg-yellow-100 text-yellow-700' },
+  PRODUCTION_STARTED: { label: 'Production Started', className: 'bg-indigo-100 text-indigo-700' },
+  PRODUCTION_IN_PROGRESS: { label: 'Production In Progress', className: 'bg-indigo-100 text-indigo-700' },
+  PRODUCTION_COMPLETED: { label: 'Production Completed', className: 'bg-indigo-100 text-indigo-700' },
+  QAQC_REQUESTED: { label: 'QAQC Requested', className: 'bg-purple-100 text-purple-700' },
+  QAQC_READY: { label: 'QAQC Ready', className: 'bg-purple-100 text-purple-700' },
+  WEIGHT_REQUESTED: { label: 'Weight Requested', className: 'bg-purple-100 text-purple-700' },
+  WEIGHBRIDGE_READY: { label: 'Weighbridge Ready', className: 'bg-purple-100 text-purple-700' },
+  WEIGHBRIDGE_PAID: { label: 'Weighbridge Paid', className: 'bg-purple-100 text-purple-700' },
+  DISPATCHED: { label: 'Dispatched', className: 'bg-teal-100 text-teal-700' },
+  INVOICE_APPROVED: { label: 'Invoice Approved', className: 'bg-teal-100 text-teal-700' },
+  PAYMENT_REQUESTED: { label: 'Payment Requested', className: 'bg-orange-100 text-orange-700' },
+  PAYMENT_DONE: { label: 'Payment Done', className: 'bg-green-100 text-green-700' },
 };
 
 const EMPTY_FORM = { poNumber: '', client: '', batch: '', qty: '', rate: '', amount: '', notes: '' };
@@ -50,6 +67,10 @@ export default function ZePoPage() {
   const [ackTarget, setAckTarget] = useState<PurchaseOrder | null>(null);
   const [ackForm, setAckForm] = useState({ qty: '', rate: '', amount: '' });
   const [acking, setAcking] = useState(false);
+
+  const [uploadTarget, setUploadTarget] = useState<PurchaseOrder | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -149,13 +170,32 @@ export default function ZePoPage() {
         amount: ackForm.amount ? Number(ackForm.amount) : undefined,
       };
       await axios.post(`/api/po/${ackTarget._id}/acknowledge`, payload);
-      toast?.('Purchase order acknowledged', 'success');
+      toast?.('Sent to Milky Mist for acknowledgement', 'success');
       setAckTarget(null);
       fetchOrders();
     } catch (err) {
       toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to acknowledge PO', 'error');
     } finally {
       setAcking(false);
+    }
+  };
+
+  const handleUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!uploadTarget || !uploadFile) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      await axios.post(`/api/po/${uploadTarget._id}/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast?.('PO document uploaded — marked as Received', 'success');
+      setUploadTarget(null);
+      setUploadFile(null);
+      fetchOrders();
+    } catch (err) {
+      toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to upload PO document', 'error');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -174,10 +214,15 @@ export default function ZePoPage() {
     ) : <span className="text-xs text-gray-400">Not uploaded</span> },
     { key: 'createdAt', label: 'Logged', render: (v: string) => new Date(v).toLocaleDateString('en-IN') },
     { key: 'actions', label: '', render: (_: unknown, row: PurchaseOrder) => (
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {row.status === 'REQUESTED' && (
+          <button onClick={() => { setUploadTarget(row); setUploadFile(null); }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+            <UploadCloud size={13} /> Upload Document
+          </button>
+        )}
         {row.status === 'RECEIVED' && (
           <button onClick={() => openAcknowledge(row)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors">
-            <CheckCircle2 size={13} /> Acknowledge
+            <CheckCircle2 size={13} /> Send for Acknowledgement
           </button>
         )}
       </div>
@@ -268,15 +313,36 @@ export default function ZePoPage() {
         </form>
       </Modal>
 
-      <Modal isOpen={!!ackTarget} onClose={() => setAckTarget(null)} title="Acknowledge Purchase Order"
+      <Modal isOpen={!!uploadTarget} onClose={() => { setUploadTarget(null); setUploadFile(null); }} title="Upload PO Document"
+        footer={<>
+          <button onClick={() => { setUploadTarget(null); setUploadFile(null); }} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+          <button form="po-upload-form" type="submit" disabled={uploading || !uploadFile} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl disabled:opacity-60">{uploading ? 'Uploading...' : 'Upload'}</button>
+        </>}
+      >
+        <form id="po-upload-form" onSubmit={handleUpload} className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Upload the PO document for <span className="font-semibold text-gray-900">{uploadTarget?.poNumber}</span>. This marks it as Received and notifies ZE Production, Milky Mist Production and Milky Mist Accounts.
+          </p>
+          <div className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors"
+            onClick={() => document.getElementById('po-upload-input')?.click()}
+          >
+            <Upload size={20} className="text-gray-400" />
+            <p className="text-sm text-gray-600">{uploadFile ? uploadFile.name : 'Click to select PO file (PDF/image)'}</p>
+            <input id="po-upload-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={!!ackTarget} onClose={() => setAckTarget(null)} title="Set Final Values & Send for Acknowledgement"
         footer={<>
           <button onClick={() => setAckTarget(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
-          <button form="po-ack-form" type="submit" disabled={acking} className="px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl disabled:opacity-60">{acking ? 'Saving...' : 'Acknowledge'}</button>
+          <button form="po-ack-form" type="submit" disabled={acking} className="px-4 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl disabled:opacity-60">{acking ? 'Sending...' : 'Send for Acknowledgement'}</button>
         </>}
       >
         <form id="po-ack-form" onSubmit={handleAcknowledge} className="space-y-4">
           <p className="text-sm text-gray-600">
-            Confirm final values for <span className="font-semibold text-gray-900">{ackTarget?.poNumber}</span> to mark it Acknowledged.
+            Set final values for <span className="font-semibold text-gray-900">{ackTarget?.poNumber}</span>. This sends the values to Milky Mist Production and Accounts via WhatsApp for their acknowledgement — production starts once either confirms.
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div>
