@@ -105,6 +105,81 @@ app.prepare().then(async () => {
     }
   }, { timezone: 'Asia/Kolkata' });
 
+  // Carbon check-in: dashboard-configurable daily WhatsApp "have you fed the cow" prompt.
+  // Ticks every minute since the send time (carbon.checkinTime) is admin-editable at runtime.
+  cron.schedule('* * * * *', async () => {
+    try {
+      const { default: dbConnect } = await import('./lib/mongodb');
+      const { default: Settings } = await import('./lib/models/Settings');
+      const { default: CarbonFarmer } = await import('./lib/models/CarbonFarmer');
+      const { default: Cattle } = await import('./lib/models/Cattle');
+      const { default: BotSession } = await import('./lib/models/BotSession');
+      const { sendWhatsAppButtons } = await import('./lib/whatsapp');
+      await dbConnect();
+
+      const [enabledSetting, timeSetting, siteSetting, lastRunSetting] = await Promise.all([
+        Settings.findOne({ key: 'carbon.checkinEnabled' }).lean<{ value?: unknown }>(),
+        Settings.findOne({ key: 'carbon.checkinTime' }).lean<{ value?: unknown }>(),
+        Settings.findOne({ key: 'carbon.checkinProgramSite' }).lean<{ value?: unknown }>(),
+        Settings.findOne({ key: 'carbon.checkinLastRunDate' }).lean<{ value?: unknown }>(),
+      ]);
+
+      const enabled = enabledSetting?.value === undefined ? true : enabledSetting.value === 'true' || enabledSetting.value === true;
+      if (!enabled) return;
+
+      const checkinTime = (timeSetting?.value as string) || '18:00';
+      const programSite = (siteSetting?.value as string) || 'NAINARPALAYAM';
+
+      const nowIst = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false });
+      const [datePart, timePart] = nowIst.split(', ');
+      const currentHHmm = timePart.slice(0, 5);
+      const todayKey = datePart.split('/').reverse().join('-'); // dd/mm/yyyy -> yyyy-mm-dd
+
+      if (currentHHmm !== checkinTime) return;
+      if (lastRunSetting?.value === todayKey) return; // already ran today
+
+      const farmers = await CarbonFarmer.find({ isActive: true, programSite, mobile: { $exists: true, $ne: '' } }).lean<Array<{ _id: unknown; name: string; mobile: string }>>();
+
+      let sent = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      for (const farmer of farmers) {
+        const activeCattleCount = await Cattle.countDocuments({ farmer: farmer._id, isActive: true });
+        if (activeCattleCount === 0) { skipped++; continue; }
+
+        try {
+          await sendWhatsAppButtons(farmer.mobile, `Hi ${farmer.name}, have you fed the cow(s) today?`, [
+            { id: `feed_yes_${farmer._id}`, title: 'Yes' },
+            { id: `feed_no_${farmer._id}`, title: 'No' },
+          ]);
+          await BotSession.findOneAndUpdate(
+            { phoneNumber: farmer.mobile },
+            { $set: { 'temporaryData.awaitingFeedCheck': { farmerId: String(farmer._id), date: todayKey } } },
+            { upsert: true }
+          );
+          sent++;
+        } catch (err) {
+          failed++;
+          logger.error('Cron: failed to send carbon check-in message', {
+            phone: farmer.mobile,
+            error: (err as { response?: { data?: unknown } })?.response?.data || (err as Error)?.message,
+          });
+        }
+      }
+
+      await Settings.findOneAndUpdate(
+        { key: 'carbon.checkinLastRunDate' },
+        { $set: { key: 'carbon.checkinLastRunDate', value: todayKey, category: 'carbon' } },
+        { upsert: true }
+      );
+
+      logger.info(`Cron: carbon check-in — sent: ${sent}, skipped (no cattle): ${skipped}, failed: ${failed}`);
+    } catch (err) {
+      logger.error('Cron: carbon check-in failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, { timezone: 'Asia/Kolkata' });
+
   // Daily report notification at 8 AM
   cron.schedule('0 8 * * *', async () => {
     try {
@@ -131,6 +206,96 @@ app.prepare().then(async () => {
       logger.error('Cron: daily report failed', { error: err instanceof Error ? err.message : String(err) });
     }
   });
+
+  // ZE Production status poll: dashboard-configurable daily time (poWorkflow.statusPollTime).
+  // Ticks every minute since the send time is admin-editable at runtime (same technique as the carbon check-in job).
+  cron.schedule('* * * * *', async () => {
+    try {
+      const { default: dbConnect } = await import('./lib/mongodb');
+      const { default: Settings } = await import('./lib/models/Settings');
+      const { default: PurchaseOrder } = await import('./lib/models/PurchaseOrder');
+      const { pollZeProdStatus } = await import('./lib/poWorkflow');
+      await dbConnect();
+
+      const [timeSetting, lastRunSetting] = await Promise.all([
+        Settings.findOne({ key: 'poWorkflow.statusPollTime' }).lean<{ value?: unknown }>(),
+        Settings.findOne({ key: 'poWorkflow.statusPollLastRunDate' }).lean<{ value?: unknown }>(),
+      ]);
+
+      const pollTime = (timeSetting?.value as string) || '17:00';
+
+      const nowIst = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false });
+      const [datePart, timePart] = nowIst.split(', ');
+      const currentHHmm = timePart.slice(0, 5);
+      const todayKey = datePart.split('/').reverse().join('-'); // dd/mm/yyyy -> yyyy-mm-dd
+
+      if (currentHHmm !== pollTime) return;
+      if (lastRunSetting?.value === todayKey) return; // already ran today
+
+      const orders = await PurchaseOrder.find({
+        status: { $in: ['PRODUCTION_STARTED', 'PRODUCTION_IN_PROGRESS'] },
+      });
+
+      let sent = 0;
+      for (const order of orders) {
+        try {
+          await pollZeProdStatus(order);
+          sent++;
+        } catch (err) {
+          logger.error('Cron: ZE production status poll failed', {
+            poNumber: order.poNumber,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      await Settings.findOneAndUpdate(
+        { key: 'poWorkflow.statusPollLastRunDate' },
+        { $set: { key: 'poWorkflow.statusPollLastRunDate', value: todayKey, category: 'milky_mist' } },
+        { upsert: true }
+      );
+
+      logger.info(`Cron: ZE production status poll — sent: ${sent}`);
+    } catch (err) {
+      logger.error('Cron: ZE production status poll job failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, { timezone: 'Asia/Kolkata' });
+
+  // Daily QAQC / weighbridge readiness poll at 10 AM IST
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      const { default: dbConnect } = await import('./lib/mongodb');
+      const { default: PurchaseOrder } = await import('./lib/models/PurchaseOrder');
+      const { pollQaqcReady, pollWeighBridgeReady } = await import('./lib/poWorkflow');
+      await dbConnect();
+
+      const [qaqcPending, weighBridgePending] = await Promise.all([
+        PurchaseOrder.find({ status: 'QAQC_REQUESTED' }),
+        PurchaseOrder.find({ status: 'WEIGHT_REQUESTED' }),
+      ]);
+
+      let sent = 0;
+      for (const order of qaqcPending) {
+        try {
+          await pollQaqcReady(order);
+          sent++;
+        } catch (err) {
+          logger.error('Cron: QAQC readiness poll failed', { poNumber: order.poNumber, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      for (const order of weighBridgePending) {
+        try {
+          await pollWeighBridgeReady(order);
+          sent++;
+        } catch (err) {
+          logger.error('Cron: weighbridge readiness poll failed', { poNumber: order.poNumber, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      logger.info(`Cron: QAQC/weighbridge readiness poll — sent: ${sent}`);
+    } catch (err) {
+      logger.error('Cron: QAQC/weighbridge readiness poll job failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, { timezone: 'Asia/Kolkata' });
 
   httpServer.listen(port, hostname, () => {
     logger.info(`gramCarbon ready at http://${hostname}:${port}`);

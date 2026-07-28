@@ -54,10 +54,23 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     await logAudit({ ...ctx, action: 'PO_RECEIVED', entity: 'PurchaseOrder', entityId: order._id.toString(), newData: order.toObject() });
 
     const contacts = await BusinessContact.find({ $or: NOTIFY_TARGETS, isActive: true }).lean();
-    const message = `PO Received: ${order.poNumber} (${order.client})${order.batch ? ` — Batch ${order.batch}` : ''}. Document has been uploaded and is available in the dashboard.`;
+    const buildMessage = (contactName: string) => {
+      const lines = [
+        `Hi *${contactName}*,`,
+        '',
+        `The Purchase Order document has been received.`,
+        '',
+        `*PO Number:* ${order.poNumber}`,
+        `*Client:* ${order.client}`,
+      ];
+      if (order.batch) lines.push(`*Batch:* ${order.batch}`);
+      lines.push('');
+      lines.push('📄 Document uploaded — available in the dashboard.');
+      return lines.join('\n');
+    };
 
     const notifyResults = await Promise.allSettled(
-      contacts.map((c) => sendWhatsAppText(c.phone, message))
+      contacts.map((c) => sendWhatsAppText(c.phone, buildMessage(c.name)))
     );
     const failed = contacts.filter((_, i) => notifyResults[i].status === 'rejected');
     if (failed.length) {

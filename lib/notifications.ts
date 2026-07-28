@@ -57,3 +57,21 @@ export async function notifySystemError(context: string, errMsg: string): Promis
     metadata: { context, error: errMsg },
   });
 }
+
+export async function notifyQaqcRequested(poNumber: string, poId: string): Promise<Document | null> {
+  return createNotification({
+    type: 'QAQC_REQUESTED',
+    title: 'QAQC Report Requested',
+    message: `Production completed for PO ${poNumber}. QAQC report has been requested from ZE Production.`,
+    metadata: { poId, poNumber },
+  });
+}
+
+export async function notifyApprovalRequested(poNumber: string, poId: string): Promise<Document | null> {
+  return createNotification({
+    type: 'APPROVAL_REQUESTED',
+    title: 'Approval Requested',
+    message: `PO ${poNumber} requires approval for Invoice, E-Way Bill and Delivery Note.`,
+    metadata: { poId, poNumber },
+  });
+}

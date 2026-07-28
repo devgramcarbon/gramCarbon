@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './logger';
+import { withRetry } from './retry';
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION || 'ap-south-1',
@@ -34,13 +35,9 @@ export async function uploadToS3(buffer: Buffer, mimeType: string, folder = 'upl
   const ext = mimeType.split('/')[1] || 'bin';
   const key = `${folder}/${uuidv4()}.${ext}`;
 
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: mimeType,
-    })
+  await withRetry(
+    () => s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: mimeType })),
+    { retries: 3, delayMs: 500, label: `S3 upload (${key})` }
   );
 
   return { key, url: `https://${BUCKET}.s3.amazonaws.com/${key}` };

@@ -17,6 +17,6 @@ const CattleSchema = new Schema<ICattle>(
   { timestamps: true }
 );
 
-CattleSchema.index({ farmer: 1 });
+CattleSchema.index({ farmer: 1, isActive: 1 });
 
 export default mongoose.models.Cattle || mongoose.model<ICattle>('Cattle', CattleSchema);

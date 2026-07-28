@@ -75,7 +75,7 @@ export default function Sidebar({ user, mobileOpen = false, setMobileOpen }: Sid
   const isZeAdmin = user?.role === 'ZE_ADMIN';
   const isZeAcc = user?.role === 'ZE_ACC';
   const items = NAV_ITEMS.filter((i) => {
-    if (i.zeAdminOnly) return isZeAdmin;
+    if (i.zeAdminOnly) return isZeAdmin || (i.href === '/dashboard/ze/po' && isSuperAdmin);
     if (i.zeAccOnly) return isZeAcc;
     if (isZeAdmin || isZeAcc) return i.exact === true;
     return (!i.adminOnly || isAdmin) && (!i.superAdminOnly || isSuperAdmin);

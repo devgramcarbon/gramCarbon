@@ -9,6 +9,7 @@ export interface IFeedLog {
   fractionalOffsetId: string;
   status: 'PENDING' | 'VERIFIED';
   offsetValue?: number;
+  formulaVersion?: number;
   verification?: {
     campLead?: Types.ObjectId;
     verificationDate?: Date;
@@ -32,6 +33,7 @@ const FeedLogSchema = new Schema<IFeedLog>(
     fractionalOffsetId: { type: String, required: true, unique: true, trim: true },
     status: { type: String, enum: ['PENDING', 'VERIFIED'], default: 'PENDING' },
     offsetValue: { type: Number, default: null },
+    formulaVersion: { type: Number, default: null },
     verification: {
       campLead: { type: Schema.Types.ObjectId, ref: 'CampLead' },
       verificationDate: { type: Date },

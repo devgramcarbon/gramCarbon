@@ -3,7 +3,8 @@ import mongoose, { Schema } from 'mongoose';
 export type NotificationType =
   | 'STOCK_LOW' | 'WHATSAPP_DELIVERY_FAILED' | 'WEBHOOK_ERROR'
   | 'SYSTEM_ERROR' | 'NEW_DISTRIBUTOR' | 'NEW_FARMER'
-  | 'SALE_RECORDED' | 'INFO';
+  | 'SALE_RECORDED' | 'INFO'
+  | 'QAQC_REQUESTED' | 'APPROVAL_REQUESTED';
 
 export interface INotification {
   type: NotificationType;
@@ -25,6 +26,7 @@ const NotificationSchema = new Schema<INotification>(
         'STOCK_LOW', 'WHATSAPP_DELIVERY_FAILED', 'WEBHOOK_ERROR',
         'SYSTEM_ERROR', 'NEW_DISTRIBUTOR', 'NEW_FARMER',
         'SALE_RECORDED', 'INFO',
+        'QAQC_REQUESTED', 'APPROVAL_REQUESTED',
       ],
     },
     title: { type: String, required: true },

@@ -39,15 +39,20 @@ export const recordSaleSchema = z.object({
 
 export const createFarmerSchema = z.object({
   name: z.string().min(2).max(100),
-  mobile: z.string().min(10).max(15),
+  mobile: z.string().min(10).max(15).transform(normalizeIndianPhone).refine((v) => /^91\d{10}$/.test(v), 'Enter a valid 10-digit Indian mobile number'),
   village: z.string().max(100).optional(),
   district: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
-  animalCount: z.number().int().min(0).optional(),
+  animalCount: z.number().int().min(1, 'Animal count is required'),
   animalType: z.enum(['Cow', 'Buffalo', 'Mixed', 'Other']).optional(),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   distributorPhone: z.string().optional(),
   project: z.enum(['np', 'mm']).optional(),
+  aadhar: z.string().regex(/^\d{12}$/, 'Aadhar must be 12 digits').optional(),
+}).superRefine((data, ctx) => {
+  if (data.project === 'np' && !data.aadhar) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['aadhar'], message: 'Aadhar is required for NainarPalayam carbon-program farmers' });
+  }
 });
 
 function normalizeIndianPhone(raw: string): string {
@@ -103,6 +108,8 @@ export const createPurchaseOrderSchema = z.object({
   client: z.string().min(1, 'Client is required').max(200),
   batch: z.string().max(100).optional(),
   qty: z.coerce.number().positive().optional(),
+  rate: z.coerce.number().positive().optional(),
+  amount: z.coerce.number().positive().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -127,7 +134,7 @@ export const sendMessageSchema = z.object({
 export const settingsSchema = z.object({
   key: z.string().min(1),
   value: z.unknown(),
-  category: z.enum(['whatsapp', 'system', 'business', 'notifications']).optional(),
+  category: z.enum(['whatsapp', 'system', 'business', 'notifications', 'carbon', 'milky_mist']).optional(),
   label: z.string().optional(),
   description: z.string().optional(),
 });
@@ -135,7 +142,7 @@ export const settingsSchema = z.object({
 export function parseBody<T>(schema: z.ZodSchema<T>, data: unknown): ParseResult<T> {
   const result = schema.safeParse(data);
   if (!result.success) {
-    const errors = result.error.errors.map((e) => ({
+    const errors = result.error.issues.map((e) => ({
       field: e.path.join('.'),
       message: e.message,
     }));

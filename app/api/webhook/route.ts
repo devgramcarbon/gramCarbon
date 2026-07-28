@@ -10,10 +10,27 @@ import Sale from '@/lib/models/Sale';
 import Stock from '@/lib/models/Stock';
 import type { IStock } from '@/lib/models/Stock';
 import BotSession from '@/lib/models/BotSession';
+import CarbonFarmer from '@/lib/models/CarbonFarmer';
+import type { ICarbonFarmer } from '@/lib/models/CarbonFarmer';
+import Cattle from '@/lib/models/Cattle';
+import { recordFeedGivenBatch, recordFeedNotGivenBatch } from '@/lib/offsetEngine';
+import { sendWhatsAppButtons } from '@/lib/whatsapp';
 import { notifySystemError } from '@/lib/notifications';
+import PurchaseOrder from '@/lib/models/PurchaseOrder';
+import {
+  notifyZeProdStartProduction,
+  recordProductionStatus,
+  relayProductionStatusToMm,
+  handleProductionCompleted,
+  handleQaqcReady,
+  handleWeighBridgeReady,
+  handleWeighBridgePaid,
+  sendApprovedInvoice,
+  requestPayment,
+} from '@/lib/poWorkflow';
 import { emitEvent, EVENTS } from '@/lib/socketEvents';
 import logger from '@/lib/logger';
-import type { Document } from 'mongoose';
+import type { Document, Types } from 'mongoose';
 
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
@@ -38,25 +55,6 @@ async function sendText(to: string, body: string): Promise<void> {
   await axios.post(
     `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
     { messaging_product: 'whatsapp', to, type: 'text', text: { body } },
-    { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
-  );
-}
-
-async function sendButtons(to: string, body: string, buttons: Array<{ id: string; title: string }>): Promise<void> {
-  await axios.post(
-    `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      messaging_product: 'whatsapp',
-      to,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: { text: body },
-        action: {
-          buttons: buttons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.title } })),
-        },
-      },
-    },
     { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
   );
 }
@@ -169,7 +167,7 @@ async function handleMessage(phone: string, text: string, profileName?: string):
         data.cowCount = farmer.animalCount as number;
         await saveSession(session, { step: 2, temporaryData: data });
         const details = `👨‍🌾 *${farmer.name}*\n🆔 ${farmer.farmerId}\n📱 ${farmer.mobile}\n🐄 ${farmer.animalCount} animals (${farmer.animalType})${farmer.village ? `\n🏘️ ${farmer.village}` : ''}`;
-        await sendButtons(phone, `${details}\n\nIs this the correct farmer?`, [
+        await sendWhatsAppButtons(phone, `${details}\n\nIs this the correct farmer?`, [
           { id: 'yes', title: 'Yes' },
           { id: 'no', title: 'No, try again' },
         ]);
@@ -299,6 +297,122 @@ async function handleMessage(phone: string, text: string, profileName?: string):
   }
 }
 
+async function findCarbonFarmerByPhone(phone: string): Promise<(Document & ICarbonFarmer) | null> {
+  await connectDB();
+  const bare = phone.replace(/\D/g, '');
+  const withoutCountryCode = bare.startsWith('91') ? bare.slice(2) : bare;
+  return CarbonFarmer.findOne({
+    mobile: { $in: [bare, withoutCountryCode, `91${withoutCountryCode}`] },
+  }) as unknown as Promise<(Document & ICarbonFarmer) | null>;
+}
+
+async function handleFeedCheckReply(
+  farmer: Document & ICarbonFarmer,
+  phone: string,
+  buttonId: string
+): Promise<void> {
+  const isYes = buttonId.startsWith('feed_yes_');
+  const isNo = buttonId.startsWith('feed_no_');
+
+  if (!isYes && !isNo) {
+    await sendText(phone, 'Please tap *Yes* or *No* to answer: have you fed the cow(s) today?');
+    return;
+  }
+
+  await connectDB();
+  const cattleList = await Cattle.find({ farmer: farmer._id, isActive: true }).lean<Array<{ _id: Types.ObjectId; cattleId: string }>>();
+
+  if (!cattleList.length) {
+    logger.warn('Feed check reply from farmer with no active cattle', { phone, farmerCustomId: farmer.farmerCustomId });
+    await sendText(phone, 'No active cattle found under your account. Please contact your program coordinator.');
+    return;
+  }
+
+  const logDate = new Date();
+  const paramsList = cattleList.map((cattle) => ({
+    farmer: farmer._id as Types.ObjectId,
+    farmerCustomId: farmer.farmerCustomId,
+    cattle: cattle._id,
+    cattleId: cattle.cattleId,
+    logDate,
+  }));
+  if (isYes) await recordFeedGivenBatch(paramsList);
+  else await recordFeedNotGivenBatch(paramsList);
+
+  await BotSession.findOneAndUpdate({ phoneNumber: phone }, { $unset: { 'temporaryData.awaitingFeedCheck': '' } });
+
+  if (isYes) {
+    await sendText(phone, `✅ Thanks! Logged feed for ${cattleList.length} cow${cattleList.length > 1 ? 's' : ''} today.`);
+  } else {
+    await sendText(phone, `Noted, thanks for letting us know. See you tomorrow!`);
+  }
+}
+
+const PO_BUTTON_PREFIXES = [
+  'mm_ack_',
+  'zeprod_status_started_',
+  'zeprod_status_inprogress_',
+  'zeprod_status_completed_',
+  'zeprod_qaqc_ready_',
+  'zeprod_wb_ready_',
+  'zeacc_wb_paid_',
+] as const;
+
+function matchPoButton(buttonId: string): { prefix: (typeof PO_BUTTON_PREFIXES)[number]; poId: string } | null {
+  const prefix = PO_BUTTON_PREFIXES.find((p) => buttonId.startsWith(p));
+  if (!prefix) return null;
+  return { prefix, poId: buttonId.slice(prefix.length) };
+}
+
+async function handlePoWorkflowButton(phone: string, buttonId: string): Promise<boolean> {
+  const match = matchPoButton(buttonId);
+  if (!match) return false;
+
+  await connectDB();
+  const order = await PurchaseOrder.findById(match.poId);
+  if (!order) {
+    logger.warn('PO workflow button referenced missing PO', { phone, buttonId });
+    return true;
+  }
+
+  try {
+    switch (match.prefix) {
+      case 'mm_ack_':
+        await notifyZeProdStartProduction(order);
+        break;
+      case 'zeprod_status_started_':
+        await recordProductionStatus(order, 'STARTED');
+        await relayProductionStatusToMm(order, 'STARTED');
+        break;
+      case 'zeprod_status_inprogress_':
+        await recordProductionStatus(order, 'IN_PROGRESS');
+        await relayProductionStatusToMm(order, 'IN_PROGRESS');
+        break;
+      case 'zeprod_status_completed_':
+        await recordProductionStatus(order, 'COMPLETED');
+        await relayProductionStatusToMm(order, 'COMPLETED');
+        await handleProductionCompleted(order);
+        break;
+      case 'zeprod_qaqc_ready_':
+        await handleQaqcReady(order);
+        break;
+      case 'zeprod_wb_ready_':
+        await handleWeighBridgeReady(order);
+        break;
+      case 'zeacc_wb_paid_':
+        await handleWeighBridgePaid(order);
+        await sendApprovedInvoice(order);
+        await requestPayment(order);
+        break;
+    }
+  } catch (err) {
+    logger.error('PO workflow button handling failed', { phone, buttonId, err: (err as Error).message });
+    await notifySystemError('po-workflow-webhook', (err as Error).message);
+  }
+
+  return true;
+}
+
 export async function GET(request: NextRequest): Promise<Response> {
   const { searchParams } = new URL(request.url);
   if (
@@ -312,7 +426,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json() as { entry?: Array<{ changes?: Array<{ value?: { messages?: Array<{ from?: string; id?: string; type?: string; text?: { body?: string }; interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } } }>; contacts?: Array<{ profile?: { name?: string } }> } }> }> };
+    const body = await request.json() as { entry?: Array<{ changes?: Array<{ value?: { messages?: Array<{ from?: string; id?: string; type?: string; text?: { body?: string }; interactive?: { button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } } }>; contacts?: Array<{ profile?: { name?: string } }> } }> }> };
     const value = body?.entry?.[0]?.changes?.[0]?.value;
     const message = value?.messages?.[0];
     if (!message) return NextResponse.json({ status: 'no_message' });
@@ -320,9 +434,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const from = message.from;
     const profileName = value?.contacts?.[0]?.profile?.name;
     let text = '';
+    let buttonId = '';
     if (message.type === 'text') text = message.text?.body || '';
     else if (message.type === 'interactive') {
       text = message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || '';
+      buttonId = message.interactive?.button_reply?.id || message.interactive?.list_reply?.id || '';
     }
 
     if (from) {
@@ -338,17 +454,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         await BotSession.findOneAndUpdate({ phoneNumber: from }, { lastMessageId: msgId }, { upsert: true });
       }
 
-      const dist = await Distributor.findOne({ phone: from }).lean<IDistributor>();
-      logger.info('Webhook message received', { phone: from, distributor: dist?.name || 'unknown', text });
+      if (buttonId) {
+        const handled = await handlePoWorkflowButton(from, buttonId);
+        if (handled) return NextResponse.json({ status: 'ok' });
+      }
 
-      if (!dist) {
-        logger.warn('Unauthorised WhatsApp sender blocked', { phone: from });
-        const name = profileName ? ` *_${profileName}_*` : '';
-        await sendText(from, `⛔ Sorry${name}, you are not authorised to use this service. Please contact your admin.`);
+      const dist = await Distributor.findOne({ phone: from }).lean<IDistributor>();
+
+      if (dist) {
+        logger.info('Webhook message received', { phone: from, distributor: dist.name, text });
+        await handleMessage(from, text, profileName);
         return NextResponse.json({ status: 'ok' });
       }
 
-      await handleMessage(from, text, profileName);
+      const carbonFarmer = await findCarbonFarmerByPhone(from);
+      if (carbonFarmer) {
+        logger.info('Webhook feed-check reply received', { phone: from, farmerCustomId: carbonFarmer.farmerCustomId, buttonId, text });
+        await handleFeedCheckReply(carbonFarmer, from, buttonId);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      logger.info('Webhook message from unrecognised sender ignored', { phone: from });
+      return NextResponse.json({ status: 'ok' });
     }
   } catch (err) {
     logger.error('Webhook POST error', { err: (err as Error).message });

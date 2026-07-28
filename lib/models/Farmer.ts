@@ -25,7 +25,7 @@ const FarmerSchema = new Schema<IFarmer>(
     village: { type: String, trim: true },
     district: { type: String, trim: true },
     state: { type: String, trim: true },
-    animalCount: { type: Number, default: 0 },
+    animalCount: { type: Number, required: true, min: 1 },
     animalType: {
       type: String,
       enum: ['Cow', 'Buffalo', 'Mixed', 'Other'],
