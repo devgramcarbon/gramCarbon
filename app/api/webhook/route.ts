@@ -19,6 +19,7 @@ import { notifySystemError } from '@/lib/notifications';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
 import {
   notifyZeProdStartProduction,
+  handleMmRejection,
   recordProductionStatus,
   relayProductionStatusToMm,
   handleProductionCompleted,
@@ -350,6 +351,7 @@ async function handleFeedCheckReply(
 
 const PO_BUTTON_PREFIXES = [
   'mm_ack_',
+  'mm_reject_',
   'zeprod_status_started_',
   'zeprod_status_inprogress_',
   'zeprod_status_completed_',
@@ -379,6 +381,9 @@ async function handlePoWorkflowButton(phone: string, buttonId: string): Promise<
     switch (match.prefix) {
       case 'mm_ack_':
         await notifyZeProdStartProduction(order);
+        break;
+      case 'mm_reject_':
+        await handleMmRejection(order);
         break;
       case 'zeprod_status_started_':
         await recordProductionStatus(order, 'STARTED');

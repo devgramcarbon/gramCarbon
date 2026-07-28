@@ -75,3 +75,12 @@ export async function notifyApprovalRequested(poNumber: string, poId: string): P
     metadata: { poId, poNumber },
   });
 }
+
+export async function notifyPoAckRejected(poNumber: string, poId: string): Promise<Document | null> {
+  return createNotification({
+    type: 'PO_ACK_REJECTED',
+    title: 'PO Values Marked Incorrect',
+    message: `Milky Mist marked the final values for PO ${poNumber} as incorrect. Please review and re-send for acknowledgement.`,
+    metadata: { poId, poNumber },
+  });
+}

@@ -5,7 +5,7 @@ import BusinessContact from './models/BusinessContact';
 import type { BusinessOrg, BusinessDepartment } from './models/BusinessContact';
 import { sendWhatsAppText, sendWhatsAppButtons } from './whatsapp';
 import { generateDummyDoc, type DummyDocType } from './docGen';
-import { notifyQaqcRequested, notifyApprovalRequested, notifyWhatsAppFailed, notifySystemError } from './notifications';
+import { notifyQaqcRequested, notifyApprovalRequested, notifyWhatsAppFailed, notifySystemError, notifyPoAckRejected } from './notifications';
 import { withRetry } from './retry';
 import logger from './logger';
 import type { Document, Types } from 'mongoose';
@@ -64,22 +64,44 @@ async function broadcastButtons(
   await reportSendFailures(contacts, results, `${org}/${department} buttons`);
 }
 
-export async function notifyMmProdForAcknowledge(order: PoDoc): Promise<void> {
-  await broadcastButtons(
-    'MILKY_MIST', 'PRODUCTION',
-    `Hi,\n\nPO *${order.poNumber}* (${order.client}) has been acknowledged by ZE Admin with final values.\n\nPlease acknowledge to proceed with production.`,
-    [{ id: `mm_ack_${order._id}`, title: 'Acknowledge' }]
-  );
+// Final values are entered by ZE Admin; MM Prod and MM Acc each get an Acknowledge/Incorrect
+// prompt to confirm those values are right before production starts. Either one acknowledging
+// is enough to proceed (see notifyZeProdStartProduction's idempotency guard below).
+export async function notifyMmForAcknowledge(order: PoDoc): Promise<void> {
+  const message = `Hi,\n\nPO *${order.poNumber}* (${order.client}) has final values set by ZE Admin:\n\n*Qty:* ${order.finalValues?.qty ?? order.qty ?? 'N/A'}\n*Rate:* ${order.finalValues?.rate ?? 'N/A'}\n*Amount:* ${order.finalValues?.amount !== undefined ? `₹${order.finalValues.amount}` : 'N/A'}\n\nPlease confirm these values are correct.`;
+  const buttons = [
+    { id: `mm_ack_${order._id}`, title: 'Acknowledge' },
+    { id: `mm_reject_${order._id}`, title: 'Incorrect' },
+  ];
+  await broadcastButtons('MILKY_MIST', 'PRODUCTION', message, buttons);
+  await broadcastButtons('MILKY_MIST', 'ACCOUNTS', message, buttons);
   await pushStage(order, 'MM_ACK_PENDING');
 }
 
 export async function notifyZeProdStartProduction(order: PoDoc): Promise<void> {
+  // Either MM Prod or MM Acc acknowledging is enough — ignore a second tap once we've
+  // already moved past MM_ACK_PENDING so production isn't "started" twice.
+  if (order.status !== 'MM_ACK_PENDING') {
+    logger.info('poWorkflow: MM acknowledge tap ignored, PO already past MM_ACK_PENDING', { poNumber: order.poNumber, status: order.status });
+    return;
+  }
+
   order.mmAcknowledgedAt = new Date();
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
     `Hi,\n\nMilky Mist has acknowledged PO *${order.poNumber}*.\n\nPlease start production.`
   );
   await pushStage(order, 'PRODUCTION_STARTED');
+}
+
+export async function handleMmRejection(order: PoDoc): Promise<void> {
+  if (order.status !== 'MM_ACK_PENDING') {
+    logger.info('poWorkflow: MM rejection ignored, PO already past MM_ACK_PENDING', { poNumber: order.poNumber, status: order.status });
+    return;
+  }
+
+  await notifyPoAckRejected(order.poNumber, order._id.toString());
+  await pushStage(order, 'RECEIVED');
 }
 
 export async function pollZeProdStatus(order: PoDoc): Promise<void> {

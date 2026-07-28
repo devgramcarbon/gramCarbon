@@ -5,7 +5,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { parseBody, acknowledgePurchaseOrderSchema } from '@/lib/validations';
 import { logAudit, getAuditContext } from '@/lib/audit';
 import { success, error, unauthorized, forbidden, notFound, validationError } from '@/lib/apiResponse';
-import { notifyMmProdForAcknowledge } from '@/lib/poWorkflow';
+import { notifyMmForAcknowledge } from '@/lib/poWorkflow';
 import logger from '@/lib/logger';
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'ZE_ADMIN'];
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     logger.info('Purchase order acknowledged', { poNumber: order.poNumber, by: user.email });
 
     try {
-      await notifyMmProdForAcknowledge(order);
+      await notifyMmForAcknowledge(order);
     } catch (notifyErr) {
       logger.error('Failed to notify MM Production for acknowledge', {
         poNumber: order.poNumber,
