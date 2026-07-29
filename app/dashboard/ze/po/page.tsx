@@ -13,8 +13,8 @@ import { useToast } from '../../../components/Toaster';
 type Status =
   | 'REQUESTED' | 'RECEIVED' | 'ACKNOWLEDGED' | 'MM_ACK_PENDING'
   | 'PRODUCTION_STARTED' | 'PRODUCTION_IN_PROGRESS' | 'PRODUCTION_COMPLETED'
-  | 'QAQC_REQUESTED' | 'QAQC_READY' | 'WEIGHT_REQUESTED' | 'WEIGHBRIDGE_READY'
-  | 'WEIGHBRIDGE_PAID' | 'DISPATCHED' | 'INVOICE_APPROVED' | 'PAYMENT_REQUESTED' | 'PAYMENT_DONE';
+  | 'QAQC_REQUESTED' | 'QAQC_READY' | 'QAQC_PAID' | 'WEIGHT_REQUESTED' | 'WEIGHBRIDGE_READY'
+  | 'WEIGHBRIDGE_PAID' | 'DISPATCHED' | 'DN_APPROVED' | 'INVOICE_APPROVED' | 'PAYMENT_REQUESTED' | 'PAYMENT_DONE';
 
 interface PurchaseOrder {
   _id: string;
@@ -41,10 +41,12 @@ const STATUS_LABELS: Record<Status, { label: string; className: string }> = {
   PRODUCTION_COMPLETED: { label: 'Production Completed', className: 'bg-indigo-100 text-indigo-700' },
   QAQC_REQUESTED: { label: 'QAQC Requested', className: 'bg-purple-100 text-purple-700' },
   QAQC_READY: { label: 'QAQC Ready', className: 'bg-purple-100 text-purple-700' },
+  QAQC_PAID: { label: 'QAQC Paid', className: 'bg-purple-100 text-purple-700' },
   WEIGHT_REQUESTED: { label: 'Weight Requested', className: 'bg-purple-100 text-purple-700' },
   WEIGHBRIDGE_READY: { label: 'Weighbridge Ready', className: 'bg-purple-100 text-purple-700' },
   WEIGHBRIDGE_PAID: { label: 'Weighbridge Paid', className: 'bg-purple-100 text-purple-700' },
   DISPATCHED: { label: 'Dispatched', className: 'bg-teal-100 text-teal-700' },
+  DN_APPROVED: { label: 'DN Approved', className: 'bg-teal-100 text-teal-700' },
   INVOICE_APPROVED: { label: 'Invoice Approved', className: 'bg-teal-100 text-teal-700' },
   PAYMENT_REQUESTED: { label: 'Payment Requested', className: 'bg-orange-100 text-orange-700' },
   PAYMENT_DONE: { label: 'Payment Done', className: 'bg-green-100 text-green-700' },
@@ -71,6 +73,10 @@ export default function ZePoPage() {
   const [uploadTarget, setUploadTarget] = useState<PurchaseOrder | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const [paymentProofTarget, setPaymentProofTarget] = useState<PurchaseOrder | null>(null);
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -199,6 +205,25 @@ export default function ZePoPage() {
     }
   };
 
+  const handlePaymentProofUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!paymentProofTarget || !paymentProofFile) return;
+    setUploadingProof(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', paymentProofFile);
+      await axios.post(`/api/po/${paymentProofTarget._id}/payment-proof`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast?.('Payment proof uploaded — PO marked as paid and ticket closed', 'success');
+      setPaymentProofTarget(null);
+      setPaymentProofFile(null);
+      fetchOrders();
+    } catch (err) {
+      toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to upload payment proof', 'error');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
   const columns = [
     { key: 'poNumber', label: 'PO Number', render: (v: string) => <span className="font-medium text-gray-900">{v}</span> },
     { key: 'client', label: 'Client' },
@@ -223,6 +248,11 @@ export default function ZePoPage() {
         {row.status === 'RECEIVED' && (
           <button onClick={() => openAcknowledge(row)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors">
             <CheckCircle2 size={13} /> Send for Acknowledgement
+          </button>
+        )}
+        {row.status === 'PAYMENT_REQUESTED' && (
+          <button onClick={() => { setPaymentProofTarget(row); setPaymentProofFile(null); }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-colors">
+            <UploadCloud size={13} /> Upload Payment Proof
           </button>
         )}
       </div>
@@ -330,6 +360,27 @@ export default function ZePoPage() {
             <p className="text-sm text-gray-600">{uploadFile ? uploadFile.name : 'Click to select PO file (PDF/image)'}</p>
             <input id="po-upload-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden"
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={!!paymentProofTarget} onClose={() => { setPaymentProofTarget(null); setPaymentProofFile(null); }} title="Upload Payment Proof"
+        footer={<>
+          <button onClick={() => { setPaymentProofTarget(null); setPaymentProofFile(null); }} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+          <button form="po-payment-proof-form" type="submit" disabled={uploadingProof || !paymentProofFile} className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl disabled:opacity-60">{uploadingProof ? 'Uploading...' : 'Upload'}</button>
+        </>}
+      >
+        <form id="po-payment-proof-form" onSubmit={handlePaymentProofUpload} className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Upload the transaction proof received from Milky Mist for <span className="font-semibold text-gray-900">{paymentProofTarget?.poNumber}</span>. This marks the PO as Payment Done, notifies ZE Accounts and ZE Production, and closes the ticket.
+          </p>
+          <div className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-6 cursor-pointer hover:border-green-400 hover:bg-green-50/40 transition-colors"
+            onClick={() => document.getElementById('po-payment-proof-input')?.click()}
+          >
+            <Upload size={20} className="text-gray-400" />
+            <p className="text-sm text-gray-600">{paymentProofFile ? paymentProofFile.name : 'Click to select proof file (PDF/image)'}</p>
+            <input id="po-payment-proof-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden"
+              onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)} />
           </div>
         </form>
       </Modal>

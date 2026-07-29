@@ -1,12 +1,12 @@
 import type { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
-import BusinessContact from '@/lib/models/BusinessContact';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseBody, createPurchaseOrderSchema } from '@/lib/validations';
 import { validateFile, uploadToS3 } from '@/lib/s3';
-import { sendWhatsAppText } from '@/lib/whatsapp';
+import { broadcastText } from '@/lib/poWorkflow';
 import { logAudit, getAuditContext } from '@/lib/audit';
+import { withRetry } from '@/lib/retry';
 import { success, created, error, unauthorized, forbidden, validationError } from '@/lib/apiResponse';
 import logger from '@/lib/logger';
 
@@ -81,44 +81,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const order = await PurchaseOrder.create(orderData);
+    const order = await withRetry(() => PurchaseOrder.create(orderData), { retries: 3, delayMs: 300, label: `PO create (${orderData.poNumber})` });
 
     const ctx = getAuditContext(request, user);
     await logAudit({ ...ctx, action: 'PO_CREATED', entity: 'PurchaseOrder', entityId: order._id.toString(), newData: order.toObject() });
 
-    const contacts = await BusinessContact.find({ $or: NOTIFY_TARGETS, isActive: true }).lean();
-    const buildMessage = (contactName: string) => {
-      const lines = [
-        `Hi *${contactName}*,`,
-        '',
-        `A new Purchase Order has been logged.`,
-        '',
-        `*PO Number:* ${order.poNumber}`,
-        `*Client:* ${order.client}`,
-      ];
-      if (order.batch) lines.push(`*Batch:* ${order.batch}`);
-      if (order.qty !== undefined) lines.push(`*Qty:* ${order.qty}`);
-      if (order.finalValues?.rate !== undefined) lines.push(`*Rate:* ${order.finalValues.rate}`);
-      if (order.finalValues?.amount !== undefined) lines.push(`*Amount:* ₹${order.finalValues.amount}`);
-      lines.push('');
-      lines.push(fileMeta ? '📄 Document attached — available in the dashboard.' : '_No document attached yet._');
-      return lines.join('\n');
-    };
+    const lines = [
+      'Hi,',
+      '',
+      'A new Purchase Order has been logged.',
+      '',
+      `*PO Number:* ${order.poNumber}`,
+      `*Client:* ${order.client}`,
+    ];
+    if (order.batch) lines.push(`*Batch:* ${order.batch}`);
+    if (order.qty !== undefined) lines.push(`*Qty:* ${order.qty}`);
+    if (order.finalValues?.rate !== undefined) lines.push(`*Rate:* ${order.finalValues.rate}`);
+    if (order.finalValues?.amount !== undefined) lines.push(`*Amount:* ₹${order.finalValues.amount}`);
+    lines.push('');
+    lines.push(fileMeta ? '📄 Document attached — available in the dashboard.' : '_No document attached yet._');
+    const message = lines.join('\n');
 
-    const notifyResults = await Promise.allSettled(
-      contacts.map((c) => sendWhatsAppText(c.phone, buildMessage(c.name)))
-    );
-    const failed = contacts.filter((_, i) => notifyResults[i].status === 'rejected');
-    const notifiedCount = contacts.length - failed.length;
-    if (failed.length) {
-      logger.error('PO created notification failed for some contacts', {
-        poNumber: order.poNumber,
-        failed: failed.map((c) => `${c.org}/${c.department}`),
-      });
-    }
+    await Promise.all(NOTIFY_TARGETS.map((t) => broadcastText(t.org, t.department, message)));
 
-    logger.info('Purchase order logged', { poNumber: order.poNumber, by: user.email, withFile: !!fileMeta, notified: notifiedCount });
-    return created(order, `Purchase order created — notified ${notifiedCount} contact(s)`);
+    logger.info('Purchase order logged', { poNumber: order.poNumber, by: user.email, withFile: !!fileMeta });
+    return created(order, 'Purchase order created and notifications sent');
   } catch (err) {
     logger.error('Failed to create purchase order', { error: err instanceof Error ? err.message : String(err) });
     return error('Failed to create purchase order', 500, err);

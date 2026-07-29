@@ -1,11 +1,11 @@
 import type { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
-import BusinessContact from '@/lib/models/BusinessContact';
 import { getUserFromRequest } from '@/lib/auth';
 import { validateFile, uploadToS3 } from '@/lib/s3';
-import { sendWhatsAppText } from '@/lib/whatsapp';
+import { broadcastText } from '@/lib/poWorkflow';
 import { logAudit, getAuditContext } from '@/lib/audit';
+import { withRetry } from '@/lib/retry';
 import { success, error, unauthorized, forbidden, notFound } from '@/lib/apiResponse';
 import logger from '@/lib/logger';
 
@@ -48,39 +48,27 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     order.fileName = file.name;
     order.status = 'RECEIVED';
     order.receivedAt = new Date();
-    await order.save();
+    await withRetry(() => order.save(), { retries: 3, delayMs: 300, label: `PO save (${order.poNumber} -> RECEIVED)` });
 
     const ctx = getAuditContext(request, user);
     await logAudit({ ...ctx, action: 'PO_RECEIVED', entity: 'PurchaseOrder', entityId: order._id.toString(), newData: order.toObject() });
 
-    const contacts = await BusinessContact.find({ $or: NOTIFY_TARGETS, isActive: true }).lean();
-    const buildMessage = (contactName: string) => {
-      const lines = [
-        `Hi *${contactName}*,`,
-        '',
-        `The Purchase Order document has been received.`,
-        '',
-        `*PO Number:* ${order.poNumber}`,
-        `*Client:* ${order.client}`,
-      ];
-      if (order.batch) lines.push(`*Batch:* ${order.batch}`);
-      lines.push('');
-      lines.push('📄 Document uploaded — available in the dashboard.');
-      return lines.join('\n');
-    };
+    const lines = [
+      'Hi,',
+      '',
+      'The Purchase Order document has been received.',
+      '',
+      `*PO Number:* ${order.poNumber}`,
+      `*Client:* ${order.client}`,
+    ];
+    if (order.batch) lines.push(`*Batch:* ${order.batch}`);
+    lines.push('');
+    lines.push('📄 Document uploaded — available in the dashboard.');
+    const message = lines.join('\n');
 
-    const notifyResults = await Promise.allSettled(
-      contacts.map((c) => sendWhatsAppText(c.phone, buildMessage(c.name)))
-    );
-    const failed = contacts.filter((_, i) => notifyResults[i].status === 'rejected');
-    if (failed.length) {
-      logger.error('PO received notification failed for some contacts', {
-        poNumber: order.poNumber,
-        failed: failed.map((c) => `${c.org}/${c.department}`),
-      });
-    }
+    await Promise.all(NOTIFY_TARGETS.map((t) => broadcastText(t.org, t.department, message)));
 
-    logger.info('Purchase order received', { poNumber: order.poNumber, by: user.email, notified: contacts.length - failed.length });
+    logger.info('Purchase order received', { poNumber: order.poNumber, by: user.email });
     return success(order, 'PO marked as received and notifications sent');
   } catch (err) {
     logger.error('Failed to upload purchase order', { id, error: err instanceof Error ? err.message : String(err) });

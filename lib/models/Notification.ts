@@ -4,7 +4,8 @@ export type NotificationType =
   | 'STOCK_LOW' | 'WHATSAPP_DELIVERY_FAILED' | 'WEBHOOK_ERROR'
   | 'SYSTEM_ERROR' | 'NEW_DISTRIBUTOR' | 'NEW_FARMER'
   | 'SALE_RECORDED' | 'INFO'
-  | 'QAQC_REQUESTED' | 'APPROVAL_REQUESTED' | 'PO_ACK_REJECTED';
+  | 'QAQC_REQUESTED' | 'APPROVAL_REQUESTED' | 'PO_ACK_REJECTED'
+  | 'PRODUCTION_STARTED' | 'PO_CLOSED';
 
 export interface INotification {
   type: NotificationType;
@@ -27,6 +28,7 @@ const NotificationSchema = new Schema<INotification>(
         'SYSTEM_ERROR', 'NEW_DISTRIBUTOR', 'NEW_FARMER',
         'SALE_RECORDED', 'INFO',
         'QAQC_REQUESTED', 'APPROVAL_REQUESTED', 'PO_ACK_REJECTED',
+        'PRODUCTION_STARTED', 'PO_CLOSED',
       ],
     },
     title: { type: String, required: true },

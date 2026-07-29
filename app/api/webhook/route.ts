@@ -24,10 +24,15 @@ import {
   relayProductionStatusToMm,
   handleProductionCompleted,
   handleQaqcReady,
+  handleQaqcPaymentDone,
   handleWeighBridgeReady,
   handleWeighBridgePaid,
+  notifyPendingBills,
+  approveDn,
   sendApprovedInvoice,
   requestPayment,
+  clearAwaitingWeight,
+  recordWeight,
 } from '@/lib/poWorkflow';
 import { emitEvent, EVENTS } from '@/lib/socketEvents';
 import logger from '@/lib/logger';
@@ -356,6 +361,7 @@ const PO_BUTTON_PREFIXES = [
   'zeprod_status_inprogress_',
   'zeprod_status_completed_',
   'zeprod_qaqc_ready_',
+  'zeacc_qaqc_paid_',
   'zeprod_wb_ready_',
   'zeacc_wb_paid_',
 ] as const;
@@ -401,17 +407,52 @@ async function handlePoWorkflowButton(phone: string, buttonId: string): Promise<
       case 'zeprod_qaqc_ready_':
         await handleQaqcReady(order);
         break;
+      case 'zeacc_qaqc_paid_':
+        await handleQaqcPaymentDone(order);
+        break;
       case 'zeprod_wb_ready_':
         await handleWeighBridgeReady(order);
         break;
       case 'zeacc_wb_paid_':
         await handleWeighBridgePaid(order);
+        await notifyPendingBills(order);
+        await approveDn(order);
         await sendApprovedInvoice(order);
         await requestPayment(order);
         break;
     }
   } catch (err) {
     logger.error('PO workflow button handling failed', { phone, buttonId, err: (err as Error).message });
+    await notifySystemError('po-workflow-webhook', (err as Error).message);
+  }
+
+  return true;
+}
+
+async function handleWeightReply(phone: string, text: string): Promise<boolean> {
+  await connectDB();
+  const session = await BotSession.findOne({ phoneNumber: phone });
+  const poId = (session?.temporaryData as Record<string, unknown> | undefined)?.awaitingWeightForPO;
+  if (typeof poId !== 'string') return false;
+
+  const match = text.match(/(\d+(\.\d+)?)/);
+  if (!match) {
+    await sendText(phone, 'Please reply with just the weight in kg, e.g. "10000".');
+    return true;
+  }
+
+  const order = await PurchaseOrder.findById(poId);
+  if (!order) {
+    await clearAwaitingWeight(phone);
+    return true;
+  }
+
+  try {
+    await recordWeight(order, parseFloat(match[1]));
+    await clearAwaitingWeight(phone);
+    await sendText(phone, `Got it — weight of ${match[1]}kg recorded for PO *${order.poNumber}*.`);
+  } catch (err) {
+    logger.error('PO weight capture failed', { phone, poId, err: (err as Error).message });
     await notifySystemError('po-workflow-webhook', (err as Error).message);
   }
 
@@ -462,6 +503,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (buttonId) {
         const handled = await handlePoWorkflowButton(from, buttonId);
         if (handled) return NextResponse.json({ status: 'ok' });
+      }
+
+      if (message.type === 'text') {
+        const handledWeight = await handleWeightReply(from, text);
+        if (handledWeight) return NextResponse.json({ status: 'ok' });
       }
 
       const dist = await Distributor.findOne({ phone: from }).lean<IDistributor>();

@@ -10,10 +10,12 @@ export type PurchaseOrderStatus =
   | 'PRODUCTION_COMPLETED'
   | 'QAQC_REQUESTED'
   | 'QAQC_READY'
+  | 'QAQC_PAID'
   | 'WEIGHT_REQUESTED'
   | 'WEIGHBRIDGE_READY'
   | 'WEIGHBRIDGE_PAID'
   | 'DISPATCHED'
+  | 'DN_APPROVED'
   | 'INVOICE_APPROVED'
   | 'PAYMENT_REQUESTED'
   | 'PAYMENT_DONE';
@@ -45,8 +47,12 @@ export interface IPurchaseOrder {
   weightKg?: number;
   weighBridgePaidAt?: Date;
   dispatchedAt?: Date;
+  dnApprovedAt?: Date;
   paymentRequestedAt?: Date;
   paymentDoneAt?: Date;
+  paymentProofKey?: string;
+  paymentProofUrl?: string;
+  paymentProofName?: string;
   stageHistory: Array<{ stage: string; at: Date }>;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -65,8 +71,8 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
       enum: [
         'REQUESTED', 'RECEIVED', 'ACKNOWLEDGED', 'MM_ACK_PENDING',
         'PRODUCTION_STARTED', 'PRODUCTION_IN_PROGRESS', 'PRODUCTION_COMPLETED',
-        'QAQC_REQUESTED', 'QAQC_READY', 'WEIGHT_REQUESTED', 'WEIGHBRIDGE_READY',
-        'WEIGHBRIDGE_PAID', 'DISPATCHED', 'INVOICE_APPROVED', 'PAYMENT_REQUESTED', 'PAYMENT_DONE',
+        'QAQC_REQUESTED', 'QAQC_READY', 'QAQC_PAID', 'WEIGHT_REQUESTED', 'WEIGHBRIDGE_READY',
+        'WEIGHBRIDGE_PAID', 'DISPATCHED', 'DN_APPROVED', 'INVOICE_APPROVED', 'PAYMENT_REQUESTED', 'PAYMENT_DONE',
       ],
       default: 'REQUESTED',
     },
@@ -92,8 +98,12 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     weightKg: { type: Number },
     weighBridgePaidAt: { type: Date },
     dispatchedAt: { type: Date },
+    dnApprovedAt: { type: Date },
     paymentRequestedAt: { type: Date },
     paymentDoneAt: { type: Date },
+    paymentProofKey: { type: String },
+    paymentProofUrl: { type: String },
+    paymentProofName: { type: String },
     stageHistory: {
       type: [{ stage: { type: String, required: true }, at: { type: Date, required: true } }],
       default: [],

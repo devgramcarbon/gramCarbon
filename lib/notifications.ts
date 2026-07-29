@@ -1,6 +1,7 @@
 import connectDB from './mongodb';
 import Notification from './models/Notification';
 import logger from './logger';
+import { withRetry } from './retry';
 import type { NotificationType } from './models/Notification';
 import type { Document } from 'mongoose';
 
@@ -15,13 +16,16 @@ interface CreateNotificationParams {
 export async function createNotification(params: CreateNotificationParams): Promise<Document | null> {
   try {
     await connectDB();
-    const notification = await Notification.create({
-      type: params.type,
-      title: params.title,
-      message: params.message,
-      userId: params.userId ?? null,
-      metadata: params.metadata ?? {},
-    });
+    const notification = await withRetry(
+      () => Notification.create({
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        userId: params.userId ?? null,
+        metadata: params.metadata ?? {},
+      }),
+      { retries: 3, delayMs: 300, label: `notification (${params.type})` }
+    );
     return notification;
   } catch (err) {
     logger.error('Failed to create notification', {
@@ -81,6 +85,24 @@ export async function notifyPoAckRejected(poNumber: string, poId: string): Promi
     type: 'PO_ACK_REJECTED',
     title: 'PO Values Marked Incorrect',
     message: `Milky Mist marked the final values for PO ${poNumber} as incorrect. Please review and re-send for acknowledgement.`,
+    metadata: { poId, poNumber },
+  });
+}
+
+export async function notifyProductionStarted(poNumber: string, poId: string): Promise<Document | null> {
+  return createNotification({
+    type: 'PRODUCTION_STARTED',
+    title: 'Production Started',
+    message: `ZE Production has started production for PO ${poNumber}.`,
+    metadata: { poId, poNumber },
+  });
+}
+
+export async function notifyPoClosed(poNumber: string, poId: string): Promise<Document | null> {
+  return createNotification({
+    type: 'PO_CLOSED',
+    title: 'PO Ticket Closed',
+    message: `PO ${poNumber} has been fully settled and the ticket is now closed.`,
     metadata: { poId, poNumber },
   });
 }

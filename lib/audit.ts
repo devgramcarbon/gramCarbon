@@ -1,6 +1,7 @@
 import connectDB from './mongodb';
 import AuditLog from './models/AuditLog';
 import logger from './logger';
+import { withRetry } from './retry';
 import type { AuditAction } from './models/AuditLog';
 import type { AuthPayload, AuditContext } from '@/types';
 
@@ -16,7 +17,7 @@ interface LogAuditParams extends Partial<AuditContext> {
 export async function logAudit(params: LogAuditParams): Promise<void> {
   try {
     await connectDB();
-    await AuditLog.create(params);
+    await withRetry(() => AuditLog.create(params), { retries: 3, delayMs: 300, label: `audit log (${params.action})` });
   } catch (err) {
     logger.error('Failed to write audit log', {
       err: err instanceof Error ? err.message : String(err),

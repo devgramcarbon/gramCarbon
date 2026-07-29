@@ -4,6 +4,7 @@ import PurchaseOrder from '@/lib/models/PurchaseOrder';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseBody, acknowledgePurchaseOrderSchema } from '@/lib/validations';
 import { logAudit, getAuditContext } from '@/lib/audit';
+import { withRetry } from '@/lib/retry';
 import { success, error, unauthorized, forbidden, notFound, validationError } from '@/lib/apiResponse';
 import { notifyMmForAcknowledge } from '@/lib/poWorkflow';
 import logger from '@/lib/logger';
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     order.finalValues = { ...order.finalValues, ...parsed.data };
     order.status = 'ACKNOWLEDGED';
     order.acknowledgedAt = new Date();
-    await order.save();
+    await withRetry(() => order.save(), { retries: 3, delayMs: 300, label: `PO save (${order.poNumber} -> ACKNOWLEDGED)` });
 
     const ctx = getAuditContext(request, user);
     await logAudit({ ...ctx, action: 'PO_ACKNOWLEDGED', entity: 'PurchaseOrder', entityId: order._id.toString(), newData: order.toObject() });

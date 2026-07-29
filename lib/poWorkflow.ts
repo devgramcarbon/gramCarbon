@@ -3,9 +3,10 @@ import PurchaseOrder from './models/PurchaseOrder';
 import type { IPurchaseOrder, ProductionStatus } from './models/PurchaseOrder';
 import BusinessContact from './models/BusinessContact';
 import type { BusinessOrg, BusinessDepartment } from './models/BusinessContact';
+import BotSession from './models/BotSession';
 import { sendWhatsAppText, sendWhatsAppButtons } from './whatsapp';
 import { generateDummyDoc, type DummyDocType } from './docGen';
-import { notifyQaqcRequested, notifyApprovalRequested, notifyWhatsAppFailed, notifySystemError, notifyPoAckRejected } from './notifications';
+import { notifyQaqcRequested, notifyApprovalRequested, notifyWhatsAppFailed, notifySystemError, notifyPoAckRejected, notifyProductionStarted, notifyPoClosed } from './notifications';
 import { withRetry } from './retry';
 import logger from './logger';
 import type { Document, Types } from 'mongoose';
@@ -47,7 +48,7 @@ async function reportSendFailures(
   );
 }
 
-async function broadcastText(org: BusinessOrg, department: BusinessDepartment, message: string): Promise<void> {
+export async function broadcastText(org: BusinessOrg, department: BusinessDepartment, message: string): Promise<void> {
   const contacts = await getContacts(org, department);
   const results = await Promise.allSettled(contacts.map((c) => sendWhatsAppText(c.phone, message)));
   await reportSendFailures(contacts, results, `${org}/${department} text`);
@@ -123,6 +124,8 @@ export async function recordProductionStatus(order: PoDoc, status: ProductionSta
   order.productionStatusUpdatedAt = new Date();
   if (status === 'IN_PROGRESS') order.status = 'PRODUCTION_IN_PROGRESS';
   await withRetry(() => order.save(), { retries: 3, delayMs: 300, label: `PO save (${order.poNumber} -> productionStatus=${status})` });
+
+  if (status === 'STARTED') await notifyProductionStarted(order.poNumber, order._id.toString());
 }
 
 export async function relayProductionStatusToMm(order: PoDoc, status: ProductionStatus): Promise<void> {
@@ -185,20 +188,68 @@ export async function pollQaqcReady(order: PoDoc): Promise<void> {
 }
 
 export async function handleQaqcReady(order: PoDoc): Promise<void> {
-  const docsMessage = `Hi,\n\nDocuments for PO *${order.poNumber}* are ready:\n\n📄 Delivery Note: ${order.dnUrl}\n📄 Invoice: ${order.invoiceUrl}\n📄 QAQC Report: ${order.qaqcReportUrl}`;
+  await pushStage(order, 'QAQC_READY');
+
+  await broadcastButtons(
+    'ZEROEARTH', 'ACCOUNTS',
+    `Hi,\n\nThe QAQC report is ready for PO *${order.poNumber}*.\n\nPlease confirm payment for the QAQC report.`,
+    [{ id: `zeacc_qaqc_paid_${order._id}`, title: 'Payment Done' }]
+  );
+}
+
+export async function handleQaqcPaymentDone(order: PoDoc): Promise<void> {
+  if (order.status !== 'QAQC_READY') {
+    logger.info('poWorkflow: QAQC payment tap ignored, PO already past QAQC_READY', { poNumber: order.poNumber, status: order.status });
+    return;
+  }
+
+  const docsMessage = `Hi,\n\nDocuments for PO *${order.poNumber}* are ready:\n\n📄 GRN: ${order.dnUrl}\n📄 Invoice: ${order.invoiceUrl}\n📄 QAQC Report: ${order.qaqcReportUrl}`;
   await broadcastText('MILKY_MIST', 'PRODUCTION', docsMessage);
   await broadcastText('MILKY_MIST', 'ACCOUNTS', docsMessage);
-  await pushStage(order, 'QAQC_READY');
+  await pushStage(order, 'QAQC_PAID');
 
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nPlease provide the weight after loading for PO *${order.poNumber}*.`
+    `Hi,\n\nPlease provide the weight after loading for PO *${order.poNumber}* (reply with the weight in kg).`
   );
   await broadcastText(
     'ZEROEARTH', 'ACCOUNTS',
     `Hi,\n\nWeight after loading has been requested for PO *${order.poNumber}*.`
   );
   await pushStage(order, 'WEIGHT_REQUESTED');
+  await markAwaitingWeight(order);
+}
+
+// ZE Production replies to the "please provide weight" prompt with a plain-text number.
+// We track which PO that reply belongs to via BotSession.temporaryData, keyed by the
+// ZE Production contact's phone, since there is exactly one contact per org/department.
+export async function markAwaitingWeight(order: PoDoc): Promise<void> {
+  const contacts = await getContacts('ZEROEARTH', 'PRODUCTION');
+  await Promise.all(
+    contacts.map((c) =>
+      withRetry(
+        () => BotSession.findOneAndUpdate(
+          { phoneNumber: c.phone },
+          { $set: { 'temporaryData.awaitingWeightForPO': order._id.toString() }, $currentDate: { lastInteraction: true } },
+          { upsert: true }
+        ),
+        { retries: 3, delayMs: 300, label: `BotSession markAwaitingWeight (${c.phone})` }
+      )
+    )
+  );
+}
+
+export async function clearAwaitingWeight(phone: string): Promise<void> {
+  await connectDB();
+  await withRetry(
+    () => BotSession.findOneAndUpdate({ phoneNumber: phone }, { $unset: { 'temporaryData.awaitingWeightForPO': '' } }),
+    { retries: 3, delayMs: 300, label: `BotSession clearAwaitingWeight (${phone})` }
+  );
+}
+
+export async function recordWeight(order: PoDoc, weightKg: number): Promise<void> {
+  order.weightKg = weightKg;
+  await withRetry(() => order.save(), { retries: 3, delayMs: 300, label: `PO save (${order.poNumber} -> weightKg)` });
 }
 
 export async function pollWeighBridgeReady(order: PoDoc): Promise<void> {
@@ -228,7 +279,7 @@ export async function handleWeighBridgePaid(order: PoDoc): Promise<void> {
 
   await broadcastText(
     'MILKY_MIST', 'PRODUCTION',
-    `Hi,\n\n*Prod 3 — CH4OW Loaded & Dispatched*\n\nPO: *${order.poNumber}*\nWeight: ${order.weightKg ?? 'N/A'}kg\n📄 DN: ${order.dnUrl}\n📄 E-Way Bill: ${order.ewayBillUrl}`
+    `Hi,\n\n*Prod 3 — CH4OW Loaded & Dispatched*\n\nPO: *${order.poNumber}*\nWeight: ${order.weightKg ?? 'N/A'}kg\n📄 GRN: ${order.dnUrl}\n📄 E-Way Bill: ${order.ewayBillUrl}`
   );
   await broadcastText(
     'MILKY_MIST', 'ACCOUNTS',
@@ -238,11 +289,27 @@ export async function handleWeighBridgePaid(order: PoDoc): Promise<void> {
   await pushStage(order, 'DISPATCHED', { dispatchedAt: new Date() });
 }
 
-export async function sendApprovedInvoice(order: PoDoc): Promise<void> {
+// FYI-only step, no button/gate — reminds ZE Accounts that bills for this shipment
+// (QAQC, weighbridge, transport, etc.) are still pending receipt before the DN/invoice can be approved.
+export async function notifyPendingBills(order: PoDoc): Promise<void> {
   await broadcastText(
-    'MILKY_MIST', 'ACCOUNTS',
-    `Hi,\n\nApproved Invoice for PO *${order.poNumber}*:\n\n📄 ${order.invoiceUrl}`
+    'ZEROEARTH', 'ACCOUNTS',
+    `Hi,\n\nReminder: bills for PO *${order.poNumber}* are pending receipt before approval.`
   );
+}
+
+export async function approveDn(order: PoDoc): Promise<void> {
+  await broadcastText(
+    'ZEROEARTH', 'PRODUCTION',
+    `Hi,\n\nApproved DN for PO *${order.poNumber}*:\n\n📄 GRN: ${order.dnUrl}\n📄 QAQC Report: ${order.qaqcReportUrl}\n📄 Weighbridge Report: ${order.weighBridgeReportUrl}\n📄 E-Way Bill: ${order.ewayBillUrl}`
+  );
+  await pushStage(order, 'DN_APPROVED', { dnApprovedAt: new Date() });
+}
+
+export async function sendApprovedInvoice(order: PoDoc): Promise<void> {
+  const message = `Hi,\n\nApproved Invoice for PO *${order.poNumber}*:\n\n📄 ${order.invoiceUrl}`;
+  await broadcastText('MILKY_MIST', 'ACCOUNTS', message);
+  await broadcastText('ZEROEARTH', 'ACCOUNTS', message);
   await pushStage(order, 'INVOICE_APPROVED');
 }
 
@@ -252,4 +319,29 @@ export async function requestPayment(order: PoDoc): Promise<void> {
     `Hi,\n\nRequest for payment on PO *${order.poNumber}* — due on the 15th day per terms.`
   );
   await pushStage(order, 'PAYMENT_REQUESTED', { paymentRequestedAt: new Date() });
+}
+
+// Called from the payment-proof upload route once ZE Admin uploads the transaction
+// details received from Milky Mist — not a WhatsApp-driven step.
+export async function recordPaymentProof(order: PoDoc): Promise<void> {
+  await pushStage(order, 'PAYMENT_DONE', { paymentDoneAt: new Date() });
+
+  await broadcastText(
+    'ZEROEARTH', 'ACCOUNTS',
+    `Hi,\n\nPayment done for PO *${order.poNumber}* — transaction proof uploaded.`
+  );
+  await broadcastText(
+    'ZEROEARTH', 'PRODUCTION',
+    `Hi,\n\nPayment received for PO *${order.poNumber}*.`
+  );
+}
+
+export async function closeTicket(order: PoDoc): Promise<void> {
+  const message = `Hi,\n\nPO *${order.poNumber}* is fully settled. Ticket closed. Thank you!`;
+  await broadcastText('MILKY_MIST', 'PRODUCTION', message);
+  await broadcastText('MILKY_MIST', 'ACCOUNTS', message);
+  await broadcastText('ZEROEARTH', 'PRODUCTION', message);
+  await broadcastText('ZEROEARTH', 'ACCOUNTS', message);
+  await broadcastText('ZEROEARTH', 'ADMINISTRATION', message);
+  await notifyPoClosed(order.poNumber, order._id.toString());
 }
