@@ -41,11 +41,11 @@ function dayStart(date: Date): Date {
   return d;
 }
 
-function fractionalOffsetId(farmerCustomId: string, cattleId: string, logDate: Date): string {
+function fractionalOffsetId(cattleId: string, logDate: Date): string {
   const y = logDate.getFullYear();
   const m = String(logDate.getMonth() + 1).padStart(2, '0');
   const d = String(logDate.getDate()).padStart(2, '0');
-  return `${farmerCustomId}_${y}${m}${d}_${cattleId}`;
+  return `${cattleId}/FOID${d}${m}${y}`;
 }
 
 interface FeedCheckParams {
@@ -87,7 +87,7 @@ export async function recordFeedGivenBatch(paramsList: FeedCheckParams[]): Promi
             formulaVersion: formula.version,
           },
           $setOnInsert: {
-            fractionalOffsetId: fractionalOffsetId(params.farmerCustomId, params.cattleId, logDate),
+            fractionalOffsetId: fractionalOffsetId(params.cattleId, logDate),
           },
         },
         upsert: true,
@@ -121,7 +121,7 @@ export async function recordFeedNotGivenBatch(paramsList: FeedCheckParams[]): Pr
             offsetValue: 0,
           },
           $setOnInsert: {
-            fractionalOffsetId: fractionalOffsetId(params.farmerCustomId, params.cattleId, logDate),
+            fractionalOffsetId: fractionalOffsetId(params.cattleId, logDate),
           },
         },
         upsert: true,

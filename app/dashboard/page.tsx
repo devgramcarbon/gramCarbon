@@ -24,6 +24,22 @@ const C: Record<OffsetStatus, { bg: string; color: string; label: string; emptyB
 // Carbon credit conversion: 1 cow × 365 days = 0.68 tCO₂e  →  1 tCO₂e ≈ 536.76 cow·days
 const COW_DAYS_PER_CC = 365 / 0.68;
 
+interface MonthlyStatus {
+  year: number;
+  month: number;
+  daysLogged: number;
+  daysInMonth: number;
+  status: 'ON_TRACK' | 'PARTIAL' | 'PENDING';
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const STATUS_STYLES: Record<MonthlyStatus['status'], string> = {
+  ON_TRACK: 'bg-teal-50 text-teal-600 border-teal-100',
+  PARTIAL: 'bg-amber-50 text-amber-600 border-amber-100',
+  PENDING: 'bg-gray-50 text-gray-400 border-gray-100',
+};
+
 // ─── Cow image preloader (singleton) ─────────────────────────────────────────
 const _cow = { loaded: false, cbs: new Set<() => void>() };
 if (typeof window !== 'undefined') {
@@ -217,6 +233,7 @@ export default function DashboardPage() {
     fullOffsets: number;
     fractionalRemainderValue: number;
     totalOffsetValueTons: number;
+    monthlyStatus: MonthlyStatus[];
   } | null>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -224,6 +241,7 @@ export default function DashboardPage() {
     axios.get<{ success: boolean; data: {
       animals: number; farmers: number; activeDays: number;
       fullOffsets: number; fractionalRemainderValue: number; totalOffsetValueTons: number;
+      monthlyStatus: MonthlyStatus[];
     } }>('/api/carbon-offsets')
       .then(({ data }) => { if (data.success) setNpLive(data.data); else setLoadError(true); })
       .catch(() => setLoadError(true));
@@ -316,6 +334,30 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* Monthly Status */}
+        {project !== 'mm' && npLive && npLive.monthlyStatus && npLive.monthlyStatus.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Status</h3>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+              {npLive.monthlyStatus.map((m) => (
+                <div
+                  key={`${m.year}-${m.month}`}
+                  className={`rounded-xl border p-3 text-center ${STATUS_STYLES[m.status]}`}
+                  title={`${m.daysLogged}/${m.daysInMonth} days logged`}
+                >
+                  <p className="text-xs font-semibold">{MONTH_NAMES[m.month - 1]}</p>
+                  <p className="text-[10px] opacity-70">{m.year}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 mt-4 text-[11px] text-gray-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400 inline-block" /> On Track</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Partial</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /> Pending</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Right Panel — Offset Details ───────────────────────────────────── */}

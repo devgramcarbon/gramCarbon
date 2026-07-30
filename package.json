@@ -12,6 +12,7 @@
     "backup-db": "tsx --env-file=.env.local scripts/backup-db.ts",
     "wipe-db": "tsx --env-file=.env.local scripts/wipe-db.ts",
     "import:carbon-csv": "tsx --env-file=.env.local scripts/import-carbon-csv.ts",
+    "import:np-feedlogs": "tsx --env-file=.env.local scripts/import-np-feedlogs.ts",
     "update:offset-formula": "tsx --env-file=.env.local scripts/update-offset-formula.ts",
     "seed:offset-formula-version": "tsx --env-file=.env.local scripts/seed-offset-formula-version.ts",
     "reset-password": "tsx --env-file=.env.local scripts/reset-password.ts",

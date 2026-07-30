@@ -44,7 +44,7 @@ export default function ReportsPage() {
 
   const downloadFile = async (format: 'excel' | 'csv') => {
     try {
-      const response = await axios.get('/api/reports', { params: { from: fromDate, to: toDate, format }, responseType: 'blob' });
+      const response = await axios.get('/api/reports', { params: { from: fromDate, to: toDate, format, project: project !== 'all' ? project : undefined }, responseType: 'blob' });
       const url = URL.createObjectURL(response.data as Blob);
       const a = document.createElement('a');
       a.href = url;
@@ -79,7 +79,13 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-      {reportData && (
+      {reportData && reportData.summary.totalSales === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <BarChart3 size={48} className="mb-3 opacity-50" />
+          <p className="text-sm">No sales recorded between {fromDate} and {toDate}. Try a wider date range.</p>
+        </div>
+      )}
+      {reportData && reportData.summary.totalSales > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {Object.entries(reportData.summary).map(([key, val]) => (

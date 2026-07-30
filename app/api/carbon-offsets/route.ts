@@ -4,7 +4,7 @@ import CarbonFarmer from '@/lib/models/CarbonFarmer';
 import Cattle from '@/lib/models/Cattle';
 import FeedBatch from '@/lib/models/FeedBatch';
 import FeedLog from '@/lib/models/FeedLog';
-import Settings from '@/lib/models/Settings';
+import OffsetFormulaVersion from '@/lib/models/OffsetFormulaVersion';
 import { getUserFromRequest } from '@/lib/auth';
 import { success, unauthorized } from '@/lib/apiResponse';
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   await connectDB();
 
-  const [farmerCount, cattleCount, feedLogAgg, dateRange, feedBatches, offsetConstant] = await Promise.all([
+  const [farmerCount, cattleCount, feedLogAgg, dateRange, feedBatches, activeFormula, dailySeries, byPlaceAgg, monthlyStatusAgg] = await Promise.all([
     CarbonFarmer.countDocuments({ isActive: true }),
     Cattle.countDocuments({ isActive: true }),
     FeedLog.aggregate([
@@ -35,7 +35,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { $group: { _id: null, minDate: { $min: '$logDate' }, maxDate: { $max: '$logDate' } } },
     ]),
     FeedBatch.find().sort({ supplyDate: 1 }).lean(),
-    Settings.findOne({ key: 'carbon.offsetPerCowPerDay' }).lean(),
+    OffsetFormulaVersion.findOne({ isActive: true }).lean<{ offsetPerCowPerDay?: number }>(),
+    FeedLog.aggregate([
+      { $match: { feedGiven: true } },
+      {
+        $group: {
+          _id: '$logDate',
+          dayOffset: { $sum: '$offsetValue' },
+          cowDays: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    FeedLog.aggregate([
+      { $match: { feedGiven: true } },
+      { $lookup: { from: 'carbonfarmers', localField: 'farmer', foreignField: '_id', as: 'farmerDoc' } },
+      { $unwind: '$farmerDoc' },
+      {
+        $group: {
+          _id: { $ifNull: ['$farmerDoc.place', 'Unspecified'] },
+          offsetValue: { $sum: '$offsetValue' },
+          cowDays: { $sum: 1 },
+        },
+      },
+      { $sort: { offsetValue: -1 } },
+    ]),
+    FeedLog.aggregate([
+      { $match: { feedGiven: true } },
+      {
+        $group: {
+          _id: { year: { $year: '$logDate' }, month: { $month: '$logDate' }, day: { $dayOfMonth: '$logDate' } },
+        },
+      },
+      {
+        $group: {
+          _id: { year: '$_id.year', month: '$_id.month' },
+          daysLogged: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]),
   ]);
 
   const agg = feedLogAgg[0] || { totalFractionalOffsets: 0, totalOffsetValue: 0, verifiedCount: 0 };
@@ -50,6 +89,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? Math.round((new Date(range.maxDate).getTime() - new Date(range.minDate).getTime()) / 86400000) + 1
       : 0;
 
+  let cumulative = 0;
+  const timeline = dailySeries.map((d: { _id: Date; dayOffset: number; cowDays: number }) => {
+    cumulative += d.dayOffset;
+    return {
+      date: d._id,
+      dayOffset: d.dayOffset,
+      cowDays: d.cowDays,
+      cumulativeOffset: cumulative,
+    };
+  });
+
+  const byPlace = byPlaceAgg.map((p: { _id: string; offsetValue: number; cowDays: number }) => ({
+    place: p._id,
+    offsetValue: p.offsetValue || 0,
+    cowDays: p.cowDays,
+  }));
+
+  const now = new Date();
+  const monthlyStatus = monthlyStatusAgg.map((m: { _id: { year: number; month: number }; daysLogged: number }) => {
+    const { year, month } = m._id;
+    const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+    const isPastMonth = new Date(year, month - 1, 1) < new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const daysElapsed = isCurrentMonth ? now.getDate() : daysInMonth;
+    const coverage = daysElapsed > 0 ? m.daysLogged / daysElapsed : 0;
+    let status: 'ON_TRACK' | 'PARTIAL' | 'PENDING' = 'PENDING';
+    if (isPastMonth || isCurrentMonth) {
+      status = coverage >= 0.9 ? 'ON_TRACK' : coverage > 0 ? 'PARTIAL' : 'PENDING';
+    }
+    return { year, month, daysLogged: m.daysLogged, daysInMonth, status };
+  });
+
   return success({
     animals: cattleCount,
     farmers: farmerCount,
@@ -60,7 +131,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     totalOffsetValueTons: totalOffsetValue,
     fullOffsets,
     fractionalRemainderValue,
-    offsetPerCowPerDay: ((offsetConstant as { value?: number } | null)?.value) ?? null,
+    offsetPerCowPerDay: activeFormula?.offsetPerCowPerDay ?? null,
     feedBatches,
+    timeline,
+    byPlace,
+    monthlyStatus,
   });
 }

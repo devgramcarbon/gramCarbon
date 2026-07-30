@@ -8,6 +8,7 @@ import { sendWhatsAppText, sendWhatsAppButtons } from './whatsapp';
 import { generateDummyDoc, type DummyDocType } from './docGen';
 import { notifyQaqcRequested, notifyApprovalRequested, notifyWhatsAppFailed, notifySystemError, notifyPoAckRejected, notifyProductionStarted, notifyPoClosed } from './notifications';
 import { withRetry } from './retry';
+import { getTemplateMessage } from './templates';
 import logger from './logger';
 import type { Document, Types } from 'mongoose';
 
@@ -69,7 +70,13 @@ async function broadcastButtons(
 // prompt to confirm those values are right before production starts. Either one acknowledging
 // is enough to proceed (see notifyZeProdStartProduction's idempotency guard below).
 export async function notifyMmForAcknowledge(order: PoDoc): Promise<void> {
-  const message = `Hi,\n\nPO *${order.poNumber}* (${order.client}) has final values set by ZE Admin:\n\n*Qty:* ${order.finalValues?.qty ?? order.qty ?? 'N/A'}\n*Rate:* ${order.finalValues?.rate ?? 'N/A'}\n*Amount:* ${order.finalValues?.amount !== undefined ? `₹${order.finalValues.amount}` : 'N/A'}\n\nPlease confirm these values are correct.`;
+  const message = await getTemplateMessage('po_mm_acknowledge', {
+    poNumber: order.poNumber,
+    client: order.client,
+    qty: order.finalValues?.qty ?? order.qty,
+    rate: order.finalValues?.rate,
+    amount: order.finalValues?.amount !== undefined ? `₹${order.finalValues.amount}` : undefined,
+  });
   const buttons = [
     { id: `mm_ack_${order._id}`, title: 'Acknowledge' },
     { id: `mm_reject_${order._id}`, title: 'Incorrect' },
@@ -90,7 +97,7 @@ export async function notifyZeProdStartProduction(order: PoDoc): Promise<void> {
   order.mmAcknowledgedAt = new Date();
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nMilky Mist has acknowledged PO *${order.poNumber}*.\n\nPlease start production.`
+    await getTemplateMessage('po_ze_start_production', { poNumber: order.poNumber })
   );
   await pushStage(order, 'PRODUCTION_STARTED');
 }
@@ -108,7 +115,7 @@ export async function handleMmRejection(order: PoDoc): Promise<void> {
 export async function pollZeProdStatus(order: PoDoc): Promise<void> {
   await broadcastButtons(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nDaily production status check for PO *${order.poNumber}*.\n\nWhat is the current status?`,
+    await getTemplateMessage('po_daily_status_check', { poNumber: order.poNumber }),
     [
       { id: `zeprod_status_started_${order._id}`, title: 'Started' },
       { id: `zeprod_status_inprogress_${order._id}`, title: 'In Progress' },
@@ -130,7 +137,7 @@ export async function recordProductionStatus(order: PoDoc, status: ProductionSta
 
 export async function relayProductionStatusToMm(order: PoDoc, status: ProductionStatus): Promise<void> {
   const label = status === 'STARTED' ? 'Started' : status === 'IN_PROGRESS' ? 'In Progress' : 'Completed';
-  const message = `Hi,\n\nProduction status update for PO *${order.poNumber}*:\n\n*${label}*`;
+  const message = await getTemplateMessage('po_production_status_update', { poNumber: order.poNumber, label });
   await broadcastText('MILKY_MIST', 'PRODUCTION', message);
   await broadcastText('MILKY_MIST', 'ACCOUNTS', message);
 }
@@ -138,7 +145,7 @@ export async function relayProductionStatusToMm(order: PoDoc, status: Production
 export async function handleProductionCompleted(order: PoDoc): Promise<void> {
   await broadcastText(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nProduction completed for PO *${order.poNumber}*.\n\nRequest for QAQC report.`
+    await getTemplateMessage('po_production_completed', { poNumber: order.poNumber })
   );
 
   await notifyQaqcRequested(order.poNumber, order._id.toString());
@@ -182,7 +189,7 @@ async function generateDocsResilient(
 export async function pollQaqcReady(order: PoDoc): Promise<void> {
   await broadcastButtons(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nIs the QAQC report ready for PO *${order.poNumber}*?`,
+    await getTemplateMessage('po_qaqc_ready_check', { poNumber: order.poNumber }),
     [{ id: `zeprod_qaqc_ready_${order._id}`, title: 'Yes, Ready' }]
   );
 }
@@ -192,7 +199,7 @@ export async function handleQaqcReady(order: PoDoc): Promise<void> {
 
   await broadcastButtons(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nThe QAQC report is ready for PO *${order.poNumber}*.\n\nPlease confirm payment for the QAQC report.`,
+    await getTemplateMessage('po_qaqc_ready_payment', { poNumber: order.poNumber }),
     [{ id: `zeacc_qaqc_paid_${order._id}`, title: 'Payment Done' }]
   );
 }
@@ -203,18 +210,23 @@ export async function handleQaqcPaymentDone(order: PoDoc): Promise<void> {
     return;
   }
 
-  const docsMessage = `Hi,\n\nDocuments for PO *${order.poNumber}* are ready:\n\n📄 GRN: ${order.dnUrl}\n📄 Invoice: ${order.invoiceUrl}\n📄 QAQC Report: ${order.qaqcReportUrl}`;
+  const docsMessage = await getTemplateMessage('po_qaqc_docs_ready', {
+    poNumber: order.poNumber,
+    dnUrl: order.dnUrl,
+    invoiceUrl: order.invoiceUrl,
+    qaqcReportUrl: order.qaqcReportUrl,
+  });
   await broadcastText('MILKY_MIST', 'PRODUCTION', docsMessage);
   await broadcastText('MILKY_MIST', 'ACCOUNTS', docsMessage);
   await pushStage(order, 'QAQC_PAID');
 
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nPlease provide the weight after loading for PO *${order.poNumber}* (reply with the weight in kg).`
+    await getTemplateMessage('po_weight_request_prod', { poNumber: order.poNumber })
   );
   await broadcastText(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nWeight after loading has been requested for PO *${order.poNumber}*.`
+    await getTemplateMessage('po_weight_request_acc', { poNumber: order.poNumber })
   );
   await pushStage(order, 'WEIGHT_REQUESTED');
   await markAwaitingWeight(order);
@@ -255,7 +267,7 @@ export async function recordWeight(order: PoDoc, weightKg: number): Promise<void
 export async function pollWeighBridgeReady(order: PoDoc): Promise<void> {
   await broadcastButtons(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nIs the weighbridge report ready for PO *${order.poNumber}*?`,
+    await getTemplateMessage('po_wb_ready_check', { poNumber: order.poNumber }),
     [{ id: `zeprod_wb_ready_${order._id}`, title: 'Yes, Ready' }]
   );
 }
@@ -269,7 +281,7 @@ export async function handleWeighBridgeReady(order: PoDoc): Promise<void> {
 
   await broadcastButtons(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nWeighbridge report is ready for PO *${order.poNumber}*.\n\nPlease make the weighbridge payment.`,
+    await getTemplateMessage('po_wb_ready_payment', { poNumber: order.poNumber }),
     [{ id: `zeacc_wb_paid_${order._id}`, title: 'Payment Done' }]
   );
 }
@@ -279,11 +291,16 @@ export async function handleWeighBridgePaid(order: PoDoc): Promise<void> {
 
   await broadcastText(
     'MILKY_MIST', 'PRODUCTION',
-    `Hi,\n\n*Prod 3 — CH4OW Loaded & Dispatched*\n\nPO: *${order.poNumber}*\nWeight: ${order.weightKg ?? 'N/A'}kg\n📄 GRN: ${order.dnUrl}\n📄 E-Way Bill: ${order.ewayBillUrl}`
+    await getTemplateMessage('po_dispatched_prod', {
+      poNumber: order.poNumber,
+      weightKg: order.weightKg,
+      dnUrl: order.dnUrl,
+      ewayBillUrl: order.ewayBillUrl,
+    })
   );
   await broadcastText(
     'MILKY_MIST', 'ACCOUNTS',
-    `Hi,\n\n*Prod 3 — CH4OW Loaded & Dispatched*\n\nPO: *${order.poNumber}*\n📄 Invoice: ${order.invoiceUrl}`
+    await getTemplateMessage('po_dispatched_acc', { poNumber: order.poNumber, invoiceUrl: order.invoiceUrl })
   );
 
   await pushStage(order, 'DISPATCHED', { dispatchedAt: new Date() });
@@ -294,20 +311,26 @@ export async function handleWeighBridgePaid(order: PoDoc): Promise<void> {
 export async function notifyPendingBills(order: PoDoc): Promise<void> {
   await broadcastText(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nReminder: bills for PO *${order.poNumber}* are pending receipt before approval.`
+    await getTemplateMessage('po_pending_bills', { poNumber: order.poNumber })
   );
 }
 
 export async function approveDn(order: PoDoc): Promise<void> {
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nApproved DN for PO *${order.poNumber}*:\n\n📄 GRN: ${order.dnUrl}\n📄 QAQC Report: ${order.qaqcReportUrl}\n📄 Weighbridge Report: ${order.weighBridgeReportUrl}\n📄 E-Way Bill: ${order.ewayBillUrl}`
+    await getTemplateMessage('po_dn_approved', {
+      poNumber: order.poNumber,
+      dnUrl: order.dnUrl,
+      qaqcReportUrl: order.qaqcReportUrl,
+      weighBridgeReportUrl: order.weighBridgeReportUrl,
+      ewayBillUrl: order.ewayBillUrl,
+    })
   );
   await pushStage(order, 'DN_APPROVED', { dnApprovedAt: new Date() });
 }
 
 export async function sendApprovedInvoice(order: PoDoc): Promise<void> {
-  const message = `Hi,\n\nApproved Invoice for PO *${order.poNumber}*:\n\n📄 ${order.invoiceUrl}`;
+  const message = await getTemplateMessage('po_invoice_approved', { poNumber: order.poNumber, invoiceUrl: order.invoiceUrl });
   await broadcastText('MILKY_MIST', 'ACCOUNTS', message);
   await broadcastText('ZEROEARTH', 'ACCOUNTS', message);
   await pushStage(order, 'INVOICE_APPROVED');
@@ -316,7 +339,7 @@ export async function sendApprovedInvoice(order: PoDoc): Promise<void> {
 export async function requestPayment(order: PoDoc): Promise<void> {
   await broadcastText(
     'MILKY_MIST', 'ACCOUNTS',
-    `Hi,\n\nRequest for payment on PO *${order.poNumber}* — due on the 15th day per terms.`
+    await getTemplateMessage('po_payment_requested', { poNumber: order.poNumber })
   );
   await pushStage(order, 'PAYMENT_REQUESTED', { paymentRequestedAt: new Date() });
 }
@@ -328,16 +351,16 @@ export async function recordPaymentProof(order: PoDoc): Promise<void> {
 
   await broadcastText(
     'ZEROEARTH', 'ACCOUNTS',
-    `Hi,\n\nPayment done for PO *${order.poNumber}* — transaction proof uploaded.`
+    await getTemplateMessage('po_payment_done_acc', { poNumber: order.poNumber })
   );
   await broadcastText(
     'ZEROEARTH', 'PRODUCTION',
-    `Hi,\n\nPayment received for PO *${order.poNumber}*.`
+    await getTemplateMessage('po_payment_done_prod', { poNumber: order.poNumber })
   );
 }
 
 export async function closeTicket(order: PoDoc): Promise<void> {
-  const message = `Hi,\n\nPO *${order.poNumber}* is fully settled. Ticket closed. Thank you!`;
+  const message = await getTemplateMessage('po_ticket_closed', { poNumber: order.poNumber });
   await broadcastText('MILKY_MIST', 'PRODUCTION', message);
   await broadcastText('MILKY_MIST', 'ACCOUNTS', message);
   await broadcastText('ZEROEARTH', 'PRODUCTION', message);
