@@ -3,6 +3,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { ToastProvider } from './components/Toaster';
+import OfflineOverlay from './components/OfflineOverlay';
 
 const outfit = Outfit({ subsets: ['latin'] });
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${outfit.className} antialiased`}>
         <ToastProvider>{children}</ToastProvider>
+        <OfflineOverlay />
       </body>
     </html>
   );
