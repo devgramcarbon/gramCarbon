@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { ToastProvider } from './components/Toaster';
 import OfflineOverlay from './components/OfflineOverlay';
+import SlowNetworkBanner from './components/SlowNetworkBanner';
 
 const outfit = Outfit({ subsets: ['latin'] });
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${outfit.className} antialiased`}>
         <ToastProvider>{children}</ToastProvider>
+        <SlowNetworkBanner />
         <OfflineOverlay />
       </body>
     </html>

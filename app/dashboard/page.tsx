@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import axios from 'axios';
-import { Info, CheckCircle2, X, Leaf, Users, Calendar } from 'lucide-react';
+import { Info, CheckCircle2, X, Leaf, Users, Calendar, MapPin } from 'lucide-react';
 import { useProjectFilter } from './ProjectFilterContext';
+import type { MapMarker } from '../components/OffsetLocationMap';
+
+const OffsetLocationMap = dynamic(() => import('../components/OffsetLocationMap'), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type OffsetStatus = 'np_full' | 'np_acc' | 'np_frac';
+type OffsetStatus = 'np_full' | 'np_acc' | 'np_frac' | 'mm_full' | 'mm_acc' | 'mm_frac';
 
 interface Cube {
   id: string;
@@ -19,10 +23,23 @@ const C: Record<OffsetStatus, { bg: string; color: string; label: string; emptyB
   np_full:  { bg: '#C8900A', color: '#ffffff', label: 'Full Offset'        },
   np_acc:   { bg: '#e8c45a', color: '#7a4a00', label: 'Accumulating',   emptyBg: '#f7f0dc', fillColor: '#e8c45a' },
   np_frac:  { bg: '#f7f0dc', color: '#8a6820', label: 'Fractional',     emptyBg: '#f7f0dc', fillColor: '#e8c45a' },
+  mm_full:  { bg: '#4a6274', color: '#ffffff', label: 'Full Offset'        },
+  mm_acc:   { bg: '#6FA8A3', color: '#1c3a37', label: 'Accumulating',   emptyBg: '#e3f2f5', fillColor: '#6FA8A3' },
+  mm_frac:  { bg: '#e3f2f5', color: '#2f6b78', label: 'Fractional',     emptyBg: '#e3f2f5', fillColor: '#6FA8A3' },
 };
 
 // Carbon credit conversion: 1 cow × 365 days = 0.68 tCO₂e  →  1 tCO₂e ≈ 536.76 cow·days
 const COW_DAYS_PER_CC = 365 / 0.68;
+const NP_CUBES_PER_OFFSET = Math.round(COW_DAYS_PER_CC); // 537
+const NP_ACC_THRESHOLD = Math.round(NP_CUBES_PER_OFFSET / 2); // 269
+
+// Milky Mist's own fractional-credit → CC conversion ratio (from source data)
+const MM_CUBES_PER_OFFSET = 609;
+const MM_ACC_THRESHOLD = 300;
+
+function matrixCaption(label: string, cubesPerOffset: number, accThreshold: number): string {
+  return `Full, Accumulating, Fractional  ·  ${cubesPerOffset} ${label} combine to form a full offset · Accumulating: > ${accThreshold} ${label} · Fractional: ≤ ${accThreshold} ${label}`;
+}
 
 interface MonthlyStatus {
   year: number;
@@ -33,6 +50,8 @@ interface MonthlyStatus {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const CUBE_DISPLAY_LIMIT = 140;
 
 const STATUS_STYLES: Record<MonthlyStatus['status'], string> = {
   ON_TRACK: 'bg-teal-50 text-teal-600 border-teal-100',
@@ -97,16 +116,6 @@ function CowIcon({ size = 32, color, className }: { size?: number; color?: strin
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function LegendItem({ status }: { status: OffsetStatus }) {
-  const cfg = C[status];
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: cfg.bg }} />
-      <span className="text-[11px] text-gray-600 whitespace-nowrap">{cfg.label}</span>
-    </div>
-  );
-}
-
 function OffsetCube({ cube, onClick, isSelected }: { cube: Cube; onClick: () => void; isSelected: boolean }) {
   const cfg = C[cube.status];
   const isFull = cube.value >= 1.0;
@@ -224,7 +233,9 @@ function DashboardSkeleton() {
 export default function DashboardPage() {
   const cowLoaded = useCowLoaded();
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
+  const [showAllCubes, setShowAllCubes] = useState(false);
   const [isPanelClosing, setIsPanelClosing] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const { project } = useProjectFilter();
   const [npLive, setNpLive] = useState<{
     animals: number;
@@ -234,30 +245,46 @@ export default function DashboardPage() {
     fractionalRemainderValue: number;
     totalOffsetValueTons: number;
     monthlyStatus: MonthlyStatus[];
+    farmerLocations: { lat: number; lng: number; label: string; place?: string }[];
   } | null>(null);
   const [loadError, setLoadError] = useState(false);
 
+  const [mmLive, setMmLive] = useState<{
+    farmers: number;
+    animals: number;
+    totalCC: number;
+    fullOffsets: number;
+    fractionalRemainderValue: number;
+    totalFractionalCredits: number;
+    totalLowCarbonFeedTons: number;
+    totalMonthlyCollectionLit: number;
+    monthlyBreakdown: { year: number; month: number; monthLabel: string; cc: number; fractionalCreditsGenerated: number; farmers: number; animals: number; mccs: string[] }[];
+    byMcc: { mccCode: string; mccName: string; cc: number; fractionalCreditsGenerated: number; animals: number; farmers: number; lat: number | null; lng: number | null }[];
+  } | null>(null);
+
   useEffect(() => {
-    axios.get<{ success: boolean; data: {
-      animals: number; farmers: number; activeDays: number;
-      fullOffsets: number; fractionalRemainderValue: number; totalOffsetValueTons: number;
-      monthlyStatus: MonthlyStatus[];
-    } }>('/api/carbon-offsets')
+    axios.get<{ success: boolean; data: NonNullable<typeof npLive> }>('/api/carbon-offsets')
       .then(({ data }) => { if (data.success) setNpLive(data.data); else setLoadError(true); })
       .catch(() => setLoadError(true));
+
+    axios.get<{ success: boolean; data: NonNullable<typeof mmLive> }>('/api/mm-offsets')
+      .then(({ data }) => { if (data.success) setMmLive(data.data); })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => { setShowAllCubes(false); }, [project]);
 
   if (!cowLoaded || (!npLive && !loadError)) return <DashboardSkeleton />;
 
   function closePanel() {
     setIsPanelClosing(true);
+    setShowMap(false);
     setTimeout(() => { setSelectedCubeId(null); setIsPanelClosing(false); }, 350);
   }
 
-  const gridLive: Cube[] = project === 'mm' || !npLive
+  const npCubes: Cube[] = !npLive
     ? []
     : [
-        ...Array.from({ length: npLive.fullOffsets }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
         ...(npLive.fractionalRemainderValue > 0
           ? [{
               id: 'npa1',
@@ -265,12 +292,35 @@ export default function DashboardPage() {
               status: (npLive.fractionalRemainderValue >= 0.5 ? 'np_acc' : 'np_frac') as OffsetStatus,
             }]
           : []),
+        ...Array.from({ length: npLive.fullOffsets }, (_, i): Cube => ({ id: `npf${i + 1}`, value: 1.0, status: 'np_full' })),
       ];
+
+  const mmCubes: Cube[] = !mmLive
+    ? []
+    : [
+        ...(mmLive.fractionalRemainderValue > 0
+          ? [{
+              id: 'mma1',
+              value: parseFloat(mmLive.fractionalRemainderValue.toFixed(4)),
+              status: (mmLive.fractionalRemainderValue >= 0.5 ? 'mm_acc' : 'mm_frac') as OffsetStatus,
+            }]
+          : []),
+        ...Array.from({ length: mmLive.fullOffsets }, (_, i): Cube => ({ id: `mmf${i + 1}`, value: 1.0, status: 'mm_full' })),
+      ];
+
+  const gridLive: Cube[] =
+    project === 'mm' ? mmCubes : project === 'np' ? npCubes : [...npCubes, ...mmCubes];
 
   const selectedCube = gridLive.find((c) => c.id === selectedCubeId) ?? null;
   const isFull = selectedCube?.value === 1.0;
+  const selectedIsMm = selectedCube?.status.startsWith('mm') ?? false;
 
-  const LEGEND_ORDER: OffsetStatus[] = ['np_full', 'np_acc', 'np_frac'];
+  const LEGEND_ORDER: OffsetStatus[] =
+    project === 'mm'
+      ? ['mm_full', 'mm_acc', 'mm_frac']
+      : project === 'np'
+      ? ['np_full', 'np_acc', 'np_frac']
+      : ['np_full', 'np_acc', 'np_frac', 'mm_full', 'mm_acc', 'mm_frac'];
 
   return (
     <div className="flex flex-col lg:flex-row gap-5 items-start">
@@ -286,12 +336,14 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {LEGEND_ORDER.map((s) => <LegendItem key={s} status={s} />)}
+          <div className="space-y-0.5">
+            {project === 'np' && (
+              <p className="text-xs text-gray-400">{matrixCaption('cow·days', NP_CUBES_PER_OFFSET, NP_ACC_THRESHOLD)}</p>
+            )}
+            {project !== 'np' && (
+              <p className="text-xs text-gray-400">{matrixCaption('cubes', MM_CUBES_PER_OFFSET, MM_ACC_THRESHOLD)}</p>
+            )}
           </div>
-          <p className="text-xs text-gray-400">
-            {Math.round(COW_DAYS_PER_CC)} cow·days combine to form a full offset (1 tCO₂e)
-          </p>
         </div>
 
         {/* Offset Matrix Grid */}
@@ -299,29 +351,50 @@ export default function DashboardPage() {
           {gridLive.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-8">No offset data available yet.</p>
           ) : (
-            <div className={`offset-matrix-grid${selectedCubeId ? ' panel-open' : ''}`} style={{ overflow: 'visible' }}>
-              {gridLive.map((cube) => (
-                <OffsetCube
-                  key={cube.id}
-                  cube={cube}
-                  isSelected={cube.id === selectedCubeId}
-                  onClick={() => setSelectedCubeId(cube.id)}
-                />
-              ))}
-            </div>
+            <>
+              <div className={`offset-matrix-grid${selectedCubeId ? ' panel-open' : ''}`} style={{ overflow: 'visible' }}>
+                {(showAllCubes ? gridLive : gridLive.slice(0, CUBE_DISPLAY_LIMIT)).map((cube) => (
+                  <OffsetCube
+                    key={cube.id}
+                    cube={cube}
+                    isSelected={cube.id === selectedCubeId}
+                    onClick={() => { setSelectedCubeId(cube.id); setShowMap(false); }}
+                  />
+                ))}
+              </div>
+              {!showAllCubes && gridLive.length > CUBE_DISPLAY_LIMIT && (
+                <div className="flex justify-center pt-3">
+                  <button
+                    onClick={() => setShowAllCubes(true)}
+                    className="text-xs font-semibold text-teal-700 hover:text-teal-800 px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-colors"
+                  >
+                    Show {gridLive.length - CUBE_DISPLAY_LIMIT} more
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${project === 'all' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
           {[
             { iconColor: '#7c3aed', bgColor: '#f5f3ff', value: (0.68 / 365).toFixed(4), label: 'Fractional Credit (1 Cow·Day)' },
             { iconColor: '#0f766e', bgColor: '#f0fdfa', value: '1.0000', label: `= 1 Full Offset (${Math.round(COW_DAYS_PER_CC)} Cow·Days)` },
-            {
-              iconColor: '#9A60A8', bgColor: '#faf5fb',
-              value: (npLive?.totalOffsetValueTons ?? 0).toFixed(4),
-              label: `NainarPalayam — ${npLive?.fullOffsets ?? 0} Full Offsets`,
-            },
+            ...(project !== 'mm'
+              ? [{
+                  iconColor: '#9A60A8', bgColor: '#faf5fb',
+                  value: (npLive?.totalOffsetValueTons ?? 0).toFixed(4),
+                  label: `NainarPalayam — ${npLive?.fullOffsets ?? 0} Full Offsets`,
+                }]
+              : []),
+            ...(project !== 'np'
+              ? [{
+                  iconColor: '#4a6274', bgColor: '#eaeef0',
+                  value: (mmLive?.totalCC ?? 0).toFixed(4),
+                  label: `Milky Mist — ${mmLive?.fullOffsets ?? 0} Full Offsets`,
+                }]
+              : []),
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.bgColor }}>
@@ -334,6 +407,22 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* MCC Breakdown (Milky Mist) */}
+        {project !== 'np' && mmLive && mmLive.byMcc.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">MCC Breakdown</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {mmLive.byMcc.map((m) => (
+                <div key={m.mccCode} className="rounded-xl border border-gray-100 p-3" style={{ backgroundColor: '#eaeef0' }}>
+                  <p className="text-xs font-semibold text-gray-700 truncate">{m.mccName}</p>
+                  <p className="text-lg font-bold" style={{ color: '#4a6274' }}>{m.cc.toFixed(2)}</p>
+                  <p className="text-[10px] text-gray-400">CC generated</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Monthly Status */}
         {project !== 'mm' && npLive && npLive.monthlyStatus && npLive.monthlyStatus.length > 0 && (
@@ -358,6 +447,27 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Monthly Status (Milky Mist) */}
+        {project !== 'np' && mmLive && mmLive.monthlyBreakdown.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Milky Mist — Monthly CC</h3>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+              {mmLive.monthlyBreakdown.map((m) => (
+                <div
+                  key={`${m.year}-${m.month}`}
+                  className="rounded-xl border p-3 text-center"
+                  style={{ backgroundColor: '#eaeef0', borderColor: '#d7dee2' }}
+                  title={`${m.mccs.join(', ')} — ${m.farmers} farmers, ${m.animals} animals`}
+                >
+                  <p className="text-xs font-semibold" style={{ color: '#28343d' }}>{m.monthLabel.slice(0, 3)}</p>
+                  <p className="text-[10px] opacity-70" style={{ color: '#28343d' }}>{m.year}</p>
+                  <p className="text-[10px] font-semibold mt-1" style={{ color: '#4a6274' }}>{m.cc.toFixed(1)} CC</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Right Panel — Offset Details ───────────────────────────────────── */}
@@ -376,26 +486,63 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl p-3" style={{ backgroundColor: C.np_full.bg }}>
+            <div className="flex items-center gap-3 rounded-xl p-3" style={{ backgroundColor: selectedIsMm ? C.mm_full.bg : C.np_full.bg }}>
               <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}>
                 <CowIcon size={24} color="#ffffff" />
                 <span className="text-[8px] font-bold mt-0.5 text-white">{selectedCube.value.toFixed(4)}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: C.np_acc.bg }}>Offset</p>
-                <p className="text-xl font-bold leading-none text-white">NainarPalayam</p>
+                <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: selectedIsMm ? C.mm_acc.bg : C.np_acc.bg }}>Offset</p>
+                <p className="text-xl font-bold leading-none text-white">{selectedIsMm ? 'Milky Mist' : 'NainarPalayam'}</p>
               </div>
-              <span className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: C.np_acc.bg, color: '#0c3a3f' }}>
+              <span className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: selectedIsMm ? C.mm_acc.bg : C.np_acc.bg, color: '#0c3a3f' }}>
                 {isFull ? 'Verified' : 'In Progress'}
               </span>
             </div>
 
             <div className="space-y-3">
               <DetailRow icon={<Leaf size={13} />} label="Reduction" value={`${selectedCube.value.toFixed(4)} tCO₂e`} />
-              <DetailRow icon={<CheckCircle2 size={13} />} label="Status" value={isFull ? 'Available for Retirement' : selectedCube.status === 'np_acc' ? 'Accumulating' : 'Fractional — In Progress'} green />
-              <DetailRow icon={<Users size={13} />} label="Total Farmers (program)" value={String(npLive?.farmers ?? 0)} />
-              <DetailRow icon={<Calendar size={13} />} label="Active Days (program)" value={String(npLive?.activeDays ?? 0)} />
+              <DetailRow icon={<CheckCircle2 size={13} />} label="Status" value={isFull ? 'Available for Retirement' : (selectedCube.status === 'np_acc' || selectedCube.status === 'mm_acc') ? 'Accumulating' : 'Fractional — In Progress'} green />
+              {selectedIsMm ? (
+                <>
+                  <DetailRow icon={<Users size={13} />} label="Farmers Using CH4OW (latest month)" value={String(mmLive?.farmers ?? 0)} />
+                  <DetailRow icon={<Calendar size={13} />} label="Animals (latest month)" value={String(mmLive?.animals ?? 0)} />
+                  <DetailRow icon={<Leaf size={13} />} label="Low Carbon Feed (tons)" value={String(mmLive?.totalLowCarbonFeedTons ?? 0)} />
+                </>
+              ) : (
+                <>
+                  <DetailRow icon={<Users size={13} />} label="Total Farmers (program)" value={String(npLive?.farmers ?? 0)} />
+                  <DetailRow icon={<Calendar size={13} />} label="Active Days (program)" value={String(npLive?.activeDays ?? 0)} />
+                </>
+              )}
             </div>
+
+            {(() => {
+              const mapMarkers: MapMarker[] = selectedIsMm
+                ? (mmLive?.byMcc ?? [])
+                    .filter((m): m is typeof m & { lat: number; lng: number } => m.lat != null && m.lng != null)
+                    .map((m) => ({ lat: m.lat, lng: m.lng, label: m.mccName, sublabel: `${m.cc.toFixed(1)} CC` }))
+                : (npLive?.farmerLocations ?? []).map((f) => ({ lat: f.lat, lng: f.lng, label: f.label, sublabel: f.place }));
+
+              if (mapMarkers.length === 0) return null;
+
+              return (
+                <div>
+                  <button
+                    onClick={() => setShowMap((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    <MapPin size={13} />
+                    {showMap ? 'Hide Map' : 'View Map'}
+                  </button>
+                  {showMap && (
+                    <div className="mt-3">
+                      <OffsetLocationMap markers={mapMarkers} color={selectedIsMm ? C.mm_full.bg : C.np_full.bg} />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}

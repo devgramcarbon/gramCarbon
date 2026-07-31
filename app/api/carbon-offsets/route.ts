@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   await connectDB();
 
-  const [farmerCount, cattleCount, feedLogAgg, dateRange, feedBatches, activeFormula, dailySeries, byPlaceAgg, monthlyStatusAgg] = await Promise.all([
+  const [farmerCount, cattleCount, feedLogAgg, dateRange, feedBatches, activeFormula, dailySeries, byPlaceAgg, monthlyStatusAgg, farmerLocations] = await Promise.all([
     CarbonFarmer.countDocuments({ isActive: true }),
     Cattle.countDocuments({ isActive: true }),
     FeedLog.aggregate([
@@ -75,6 +75,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
       { $sort: { '_id.year': 1, '_id.month': 1 } },
     ]),
+    CarbonFarmer.find({ isActive: true, 'location.lat': { $exists: true } })
+      .select('name place location')
+      .lean<{ name: string; place?: string; location: { lat: number; lng: number } }[]>(),
   ]);
 
   const agg = feedLogAgg[0] || { totalFractionalOffsets: 0, totalOffsetValue: 0, verifiedCount: 0 };
@@ -136,5 +139,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     timeline,
     byPlace,
     monthlyStatus,
+    farmerLocations: farmerLocations.map((f) => ({ lat: f.location.lat, lng: f.location.lng, label: f.name, place: f.place })),
   });
 }
