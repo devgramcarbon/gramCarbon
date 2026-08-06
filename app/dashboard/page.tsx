@@ -530,6 +530,22 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-400 dark:text-[#636e7b]">{matrixCaption('cubes', MM_CUBES_PER_OFFSET, MM_ACC_THRESHOLD)}</p>
             )}
           </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1">
+            {([
+              ...(project !== 'np' ? (['mm_full', 'mm_acc', 'mm_frac'] as OffsetStatus[]) : []),
+              ...(project !== 'mm' ? (['np_full', 'np_acc', 'np_frac'] as OffsetStatus[]) : []),
+            ]).map((status) => (
+              <div key={status} className="flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: C[status].bg }}
+                />
+                <span className="text-xs text-gray-500 dark:text-[#8b949e]">
+                  {status.startsWith('mm') ? 'MM' : 'NP'} {C[status].label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Offset Matrix Grid */}
