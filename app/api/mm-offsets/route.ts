@@ -66,6 +66,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }, {})
   ).sort((a, b) => b.cc - a.cc);
 
+  // Latest month's per-MCC quality stats, used for the "generated on" style detail view.
+  const latestMonthLabel = latestRows[0]?.monthLabel ?? null;
+  const latestMilkCollectedLit = latestRows.reduce((sum, r) => sum + (r.totalMonthlyCollectionLit || 0), 0);
+  const latestCh4owTons = latestRows.reduce((sum, r) => sum + (r.tonsLowCarbonFeed || 0), 0);
+  const latestMilkWeight = latestRows.reduce((sum, r) => sum + (r.totalMonthlyCollectionLit || 0), 0) || 1;
+  const latestFatPercent = latestRows.reduce((sum, r) => sum + (r.fatPercent || 0) * (r.totalMonthlyCollectionLit || 0), 0) / latestMilkWeight;
+  const latestSnfPercent = latestRows.reduce((sum, r) => sum + (r.snfPercent || 0) * (r.totalMonthlyCollectionLit || 0), 0) / latestMilkWeight;
+
   return success({
     farmers: latestFarmers,
     animals: latestAnimals,
@@ -77,5 +85,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     totalMonthlyCollectionLit,
     monthlyBreakdown,
     byMcc,
+    latestMonthLabel,
+    latestMilkCollectedLit,
+    latestCh4owTons,
+    latestFatPercent,
+    latestSnfPercent,
   });
 }

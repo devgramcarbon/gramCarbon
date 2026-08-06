@@ -109,6 +109,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     cowDays: p.cowDays,
   }));
 
+  const dosedBatches = feedBatches.filter((b) => typeof b.gramsPerAnimalPerDay === 'number');
+  const avgGramsPerAnimalPerDay =
+    dosedBatches.length > 0
+      ? dosedBatches.reduce((sum, b) => sum + (b.gramsPerAnimalPerDay || 0), 0) / dosedBatches.length
+      : 0;
+
   const now = new Date();
   const monthlyStatus = monthlyStatusAgg.map((m: { _id: { year: number; month: number }; daysLogged: number }) => {
     const { year, month } = m._id;
@@ -139,6 +145,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     timeline,
     byPlace,
     monthlyStatus,
+    avgGramsPerAnimalPerDay,
     farmerLocations: farmerLocations.map((f) => ({ lat: f.location.lat, lng: f.location.lng, label: f.name, place: f.place })),
   });
 }

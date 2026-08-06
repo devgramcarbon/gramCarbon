@@ -30,6 +30,10 @@ export default function LoadingState({ message = 'Loading...', fullPage = false 
   );
 }
 
+export function SkeletonBlock({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse bg-gray-200 dark:bg-[#30363d] rounded ${className}`} />;
+}
+
 export function SkeletonRow({ cols = 4 }: { cols?: number }) {
   return (
     <tr className="animate-pulse">
