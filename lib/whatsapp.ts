@@ -15,9 +15,11 @@ async function postWithRetry(url: string, payload: unknown, headers: Record<stri
   try {
     await withRetry(() => axios.post(url, payload, { headers }), { retries: 3, delayMs: 800, label, shouldRetry: isRetryable });
   } catch (err) {
-    const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
-    logger.error(`${label} send failed`, { error: axiosErr?.response?.data?.error?.message || (err as Error)?.message });
-    throw err;
+    const axiosErr = err as { response?: { data?: { error?: { message?: string; error_data?: { details?: string } } } } };
+    const metaError = axiosErr?.response?.data?.error;
+    const metaMessage = metaError ? [metaError.message, metaError.error_data?.details].filter(Boolean).join(' — ') : undefined;
+    logger.error(`${label} send failed`, { error: metaMessage || (err as Error)?.message });
+    throw new Error(metaMessage || (err as Error)?.message || 'WhatsApp send failed');
   }
 }
 

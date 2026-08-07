@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
   try {
     // Template messages bypass WhatsApp's 24h session window, so this works even for
     // brand-new numbers that have never messaged the bot before (unlike free-form text/buttons).
-    await sendWhatsAppTemplate(contact.phone, 'test_temp', 'en', [contact.name]);
+    await sendWhatsAppTemplate(contact.phone, 'test_temp', 'en_US', [contact.name]);
     logger.info('Business contact test message sent', { id, phone: contact.phone, by: user.email });
     return success({ delivered: true }, `Test message sent to ${contact.phone}`);
   } catch (err) {
