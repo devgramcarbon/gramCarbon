@@ -47,6 +47,38 @@ export async function sendWhatsAppButtons(
   await postWithRetry(url, payload, headers, `WhatsApp buttons (${to})`);
 }
 
+export async function sendWhatsAppTemplate(
+  phone: string,
+  templateName: string,
+  languageCode: string,
+  bodyParams: string[] = []
+): Promise<void> {
+  const url = `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`;
+  const headers = {
+    Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+    'Content-Type': 'application/json',
+  };
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phone,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      ...(bodyParams.length > 0 && {
+        components: [
+          {
+            type: 'body',
+            parameters: bodyParams.map((text) => ({ type: 'text', text })),
+          },
+        ],
+      }),
+    },
+  };
+
+  await postWithRetry(url, payload, headers, `WhatsApp template (${templateName} -> ${phone})`);
+}
+
 export async function sendWhatsAppText(phone: string, message: string): Promise<void> {
   const url = `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`;
   const headers = {
