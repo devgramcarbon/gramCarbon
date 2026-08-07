@@ -119,6 +119,10 @@ export async function GET(request: NextRequest): Promise<NextResponse | Response
     }
 
     if (format === 'csv') {
+      const csvEscape = (val: unknown) => {
+        const str = String(val ?? '');
+        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+      };
       const rows = [
         ['Date', 'Distributor', 'Farmer', 'Animals', 'Qty (kg)', 'Batch No'],
         ...reportData.salesData.map((s) => [
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest): Promise<NextResponse | Response
           s.batchNo || '',
         ]),
       ];
-      const csv = rows.map((r) => r.join(',')).join('\n');
+      const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n');
       return new NextResponse(csv, {
         status: 200,
         headers: {

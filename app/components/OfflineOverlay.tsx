@@ -1,21 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
+
+const CHECK_INTERVAL_MS = 5000;
+const CHECK_TIMEOUT_MS = 4000;
+
+async function checkConnectivity(): Promise<boolean> {
+  if (!navigator.onLine) return false;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+
+  try {
+    await fetch('/favicon.ico', {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export default function OfflineOverlay() {
   const [isOnline, setIsOnline] = useState(true);
   const [retrying, setRetrying] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    setIsOnline(navigator.onLine);
+    let cancelled = false;
 
-    const handleOnline = () => setIsOnline(true);
+    const runCheck = async () => {
+      const online = await checkConnectivity();
+      if (!cancelled) setIsOnline(online);
+    };
+
+    runCheck();
+    intervalRef.current = setInterval(runCheck, CHECK_INTERVAL_MS);
+
     const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => runCheck();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
     return () => {
+      cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -23,12 +58,11 @@ export default function OfflineOverlay() {
 
   if (isOnline) return null;
 
-  const handleRetry = () => {
+  const handleRetry = async () => {
     setRetrying(true);
-    if (navigator.onLine) {
-      setIsOnline(true);
-    }
-    setTimeout(() => setRetrying(false), 800);
+    const online = await checkConnectivity();
+    setIsOnline(online);
+    setRetrying(false);
   };
 
   return (
