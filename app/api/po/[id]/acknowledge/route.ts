@@ -7,6 +7,7 @@ import { logAudit, getAuditContext } from '@/lib/audit';
 import { withRetry } from '@/lib/retry';
 import { success, error, unauthorized, forbidden, notFound, validationError } from '@/lib/apiResponse';
 import { notifyMmForAcknowledge } from '@/lib/poWorkflow';
+import { notifySystemError } from '@/lib/notifications';
 import logger from '@/lib/logger';
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'ZE_ADMIN'];
@@ -44,10 +45,9 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     try {
       await notifyMmForAcknowledge(order);
     } catch (notifyErr) {
-      logger.error('Failed to notify MM Production for acknowledge', {
-        poNumber: order.poNumber,
-        error: notifyErr instanceof Error ? notifyErr.message : String(notifyErr),
-      });
+      const errMsg = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
+      logger.error('Failed to notify MM Production for acknowledge', { poNumber: order.poNumber, error: errMsg });
+      await notifySystemError('po-mm-acknowledge', `PO ${order.poNumber}: ${errMsg}`);
     }
 
     return success(order, 'Purchase order acknowledged');

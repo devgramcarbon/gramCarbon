@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
-import { Plus, Search, RefreshCw, Phone, Pencil, Trash2, Power, KeyRound, ShieldOff } from 'lucide-react';
+import { Plus, Search, RefreshCw, Phone, Pencil, Trash2, Power, KeyRound, ShieldOff, Send } from 'lucide-react';
 import PageHeader from '../../components/PageHeader';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import DataTable from '../../components/DataTable';
@@ -55,6 +55,8 @@ export default function BusinessContactsPage() {
   const [revokeTarget, setRevokeTarget] = useState<BusinessContact | null>(null);
   const [revoking, setRevoking] = useState(false);
 
+  const [testingId, setTestingId] = useState<string | null>(null);
+
   const fetchContacts = useCallback(async () => {
     try {
       setLoading(true);
@@ -69,17 +71,30 @@ export default function BusinessContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
+  const sendTestMessage = useCallback(async (id: string) => {
+    setTestingId(id);
+    try {
+      const { data } = await axios.post<{ success: boolean; message?: string }>(`/api/business-contacts/${id}/test-message`);
+      toast?.(data.message || 'Test message sent', 'success');
+    } catch (err) {
+      toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Test message failed to send', 'error');
+    } finally {
+      setTestingId(null);
+    }
+  }, [toast]);
+
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const { grantAccess, email, password, ...contactFields } = form;
       const payload = grantAccess ? { ...contactFields, dashboardAccess: { email, password } } : contactFields;
-      await axios.post('/api/business-contacts', payload);
+      const { data } = await axios.post<{ success: boolean; data: BusinessContact }>('/api/business-contacts', payload);
       toast?.('Business contact added successfully', 'success');
       setShowModal(false);
       setForm(EMPTY_FORM);
       fetchContacts();
+      if (data.data?._id) sendTestMessage(data.data._id);
     } catch (err) {
       toast?.((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to add contact', 'error');
     } finally {
@@ -189,6 +204,7 @@ export default function BusinessContactsPage() {
     { key: 'createdAt', label: 'Added', render: (v: string | undefined) => v ? new Date(v).toLocaleDateString('en-IN') : '—' },
     { key: 'actions', label: '', render: (_: unknown, row: BusinessContact) => (
       <div className="flex items-center gap-1 justify-end">
+        <button onClick={() => sendTestMessage(row._id)} disabled={testingId === row._id} className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors disabled:opacity-60" title="Send test WhatsApp message"><Send size={14} /></button>
         <button onClick={() => openAccess(row)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title={row.userId ? 'Reset password' : 'Grant dashboard access'}><KeyRound size={14} /></button>
         {row.userId && (
           <button onClick={() => setRevokeTarget(row)} className="p-1.5 rounded-lg text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors" title="Revoke access"><ShieldOff size={14} /></button>

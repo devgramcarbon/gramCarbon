@@ -64,6 +64,13 @@ async function broadcastButtons(
   const contacts = await getContacts(org, department);
   const results = await Promise.allSettled(contacts.map((c) => sendWhatsAppButtons(c.phone, message, buttons)));
   await reportSendFailures(contacts, results, `${org}/${department} buttons`);
+
+  // No contact configured, or every send rejected (e.g. outside WhatsApp's 24h session
+  // window) — nothing actually reached anyone. Callers need to know so they don't silently
+  // advance workflow state as if the message went out.
+  if (results.length === 0 || results.every((r) => r.status === 'rejected')) {
+    throw new Error(`No WhatsApp message delivered for ${org}/${department}`);
+  }
 }
 
 // Final values are entered by ZE Admin; MM Prod and MM Acc each get an Acknowledge/Incorrect
@@ -81,8 +88,17 @@ export async function notifyMmForAcknowledge(order: PoDoc): Promise<void> {
     { id: `mm_ack_${order._id}`, title: 'Acknowledge' },
     { id: `mm_reject_${order._id}`, title: 'Incorrect' },
   ];
-  await broadcastButtons('MILKY_MIST', 'PRODUCTION', message, buttons);
-  await broadcastButtons('MILKY_MIST', 'ACCOUNTS', message, buttons);
+  const [prodResult, accResult] = await Promise.allSettled([
+    broadcastButtons('MILKY_MIST', 'PRODUCTION', message, buttons),
+    broadcastButtons('MILKY_MIST', 'ACCOUNTS', message, buttons),
+  ]);
+
+  // If neither MM Production nor MM Accounts actually received the message, moving the PO
+  // to "Awaiting MM Acknowledgement" would be misleading — MM has nothing to acknowledge.
+  if (prodResult.status === 'rejected' && accResult.status === 'rejected') {
+    throw new Error(`Failed to notify Milky Mist for PO ${order.poNumber} acknowledge — neither Production nor Accounts received the message`);
+  }
+
   await pushStage(order, 'MM_ACK_PENDING');
 }
 
